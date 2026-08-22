@@ -313,6 +313,53 @@ type SamlIdpUser = {
   samlTenant?: string;
 };
 
+import { syncDosOrganizations } from "./syncDosOrganizations";
+
+const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID;
+const OIDC_CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET;
+const OIDC_AUTHORIZATION_URL = process.env.OIDC_AUTHORIZATION_URL;
+const OIDC_TOKEN_URL = process.env.OIDC_TOKEN_URL;
+const OIDC_USERINFO_URL = process.env.OIDC_USERINFO_URL;
+const OIDC_WELL_KNOWN_URL = process.env.OIDC_WELL_KNOWN_URL;
+const IS_OIDC_LOGIN_ENABLED = !!(OIDC_CLIENT_ID && OIDC_CLIENT_SECRET);
+
+if (IS_OIDC_LOGIN_ENABLED) {
+  providers.push({
+    id: "dos-id",
+    name: "DOS.Me ID",
+    type: "oauth",
+    version: "2.0",
+    clientId: OIDC_CLIENT_ID,
+    clientSecret: OIDC_CLIENT_SECRET,
+    wellKnown: OIDC_WELL_KNOWN_URL || undefined,
+    authorization: {
+      url: OIDC_AUTHORIZATION_URL || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
+      params: {
+        scope: "openid profile email",
+        response_type: "code",
+      },
+    },
+    token: OIDC_TOKEN_URL || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
+    userinfo: OIDC_USERINFO_URL || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+    profile(profile: {
+      sub: string;
+      email?: string;
+      name?: string;
+      picture?: string;
+      avatar_url?: string;
+      organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
+    }) {
+      return {
+        id: profile.sub,
+        name: profile.name || profile.email?.split("@")[0] || "User",
+        email: profile.email,
+        image: profile.picture || profile.avatar_url || null,
+        organizations: profile.organizations,
+      } as unknown as User;
+    },
+  } as unknown as Provider);
+}
+
 if (IS_GOOGLE_LOGIN_ENABLED) {
   providers.push(
     GoogleProvider({
@@ -941,6 +988,15 @@ export const getOptions = ({
                 log.error("Error while linking account of already existing user", safeStringify(error));
               }
             }
+            if (account.provider === "dos-id" || account.provider === "oidc") {
+              const orgs = (
+                user as unknown as {
+                  organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
+                }
+              )?.organizations;
+              await syncDosOrganizations(existingUser.id, orgs);
+            }
+
             if (existingUser.twoFactorEnabled && existingUser.identityProvider === idP) {
               return loginWithTotp(existingUser.email);
             } else {
@@ -1140,6 +1196,15 @@ export const getOptions = ({
           // Update profile photo for new Microsoft/Azure AD users
           if (account.provider === "azure-ad" && account.access_token) {
             await updateProfilePhotoMicrosoft(account.access_token, newUser.id);
+          }
+
+          if (account.provider === "dos-id" || account.provider === "oidc") {
+            const orgs = (
+              user as unknown as {
+                organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
+              }
+            )?.organizations;
+            await syncDosOrganizations(newUser.id, orgs);
           }
 
           if (newUser.twoFactorEnabled) {

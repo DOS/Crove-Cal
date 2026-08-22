@@ -9,6 +9,8 @@ export const NEXTAUTH_TO_IDENTITY_PROVIDER: Record<string, IdentityProvider> = {
   google: IdentityProvider.GOOGLE,
   saml: IdentityProvider.SAML,
   "saml-idp": IdentityProvider.SAML,
+  "dos-id": IdentityProvider.SAML,
+  oidc: IdentityProvider.SAML,
   cal: IdentityProvider.CAL,
 };
 
