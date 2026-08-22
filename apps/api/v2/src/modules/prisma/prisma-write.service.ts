@@ -69,12 +69,23 @@ export class PrismaWriteService implements OnModuleInit, OnModuleDestroy {
         connectionString: dbUrl,
         max: maxWriteConnections,
         idleTimeoutMillis: 300000,
+        ssl: {
+          rejectUnauthorized: false,
+        },
       });
 
       const adapter = new PrismaPg(this.pool, adapterOptions);
       this.prisma = new PrismaClient({ adapter });
     } else {
-      const adapter = new PrismaPg({ connectionString: dbUrl }, adapterOptions);
+      const adapterPool = new Pool({
+        connectionString: dbUrl,
+        max: 5,
+        idleTimeoutMillis: 300000,
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      });
+      const adapter = new PrismaPg(adapterPool, adapterOptions);
       this.prisma = new PrismaClient({
         adapter,
       });

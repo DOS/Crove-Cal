@@ -28,10 +28,20 @@ const pool =
         connectionString: connectionString,
         max: 5,
         idleTimeoutMillis: 300000,
+        ssl: {
+          rejectUnauthorized: false,
+        },
       })
-    : undefined;
+    : new Pool({
+        connectionString: connectionString,
+        max: 10,
+        idleTimeoutMillis: 300000,
+        ssl: {
+          rejectUnauthorized: false,
+        },
+      });
 
-const adapter = pool ? new PrismaPg(pool, adapterOptions) : new PrismaPg({ connectionString }, adapterOptions);
+const adapter = new PrismaPg(pool, adapterOptions);
 const prismaOptions: Prisma.PrismaClientOptions = {
   adapter,
 };
@@ -67,10 +77,15 @@ export const customPrisma = (options?: Prisma.PrismaClientOptions) => {
   if (options?.datasources?.db?.url) {
     const customConnectionString = options.datasources.db.url;
     const customSchema = getSchemaFromUrl(customConnectionString);
-    const customAdapter = new PrismaPg(
-      { connectionString: customConnectionString },
-      customSchema ? { schema: customSchema } : undefined
-    );
+    const customPool = new Pool({
+      connectionString: customConnectionString,
+      max: 5,
+      idleTimeoutMillis: 300000,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    });
+    const customAdapter = new PrismaPg(customPool, customSchema ? { schema: customSchema } : undefined);
 
     const { datasources: _datasources, ...restOptions } = options;
     finalOptions = {
