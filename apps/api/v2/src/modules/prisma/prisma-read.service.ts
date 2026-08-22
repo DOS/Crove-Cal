@@ -6,6 +6,17 @@ import { Pool } from "pg";
 
 const DB_MAX_POOL_CONNECTION = 10;
 
+function getSchemaFromUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url.replace(/^postgresql:\/\//, "http://").replace(/^postgres:\/\//, "http://"));
+    return parsed.searchParams.get("schema") || undefined;
+  } catch {
+    const match = url.match(/[?&]schema=([^&]+)/);
+    return match ? match[1] : undefined;
+  }
+}
+
 @Injectable()
 export class PrismaReadService implements OnModuleInit, OnModuleDestroy {
   private logger = new Logger("PrismaReadService");
@@ -39,6 +50,9 @@ export class PrismaReadService implements OnModuleInit, OnModuleDestroy {
     const isE2E = options.e2e ?? false;
     const usePool = options.usePool ?? true;
 
+    const schema = getSchemaFromUrl(dbUrl);
+    const adapterOptions = schema ? { schema } : undefined;
+
     if (usePool) {
       let maxReadConnections = options.maxReadConnections ?? DB_MAX_POOL_CONNECTION;
       if (isE2E) {
@@ -51,10 +65,10 @@ export class PrismaReadService implements OnModuleInit, OnModuleDestroy {
         idleTimeoutMillis: 300000,
       });
 
-      const adapter = new PrismaPg(this.pool);
+      const adapter = new PrismaPg(this.pool, adapterOptions);
       this.prisma = new PrismaClient({ adapter });
     } else {
-      const adapter = new PrismaPg({ connectionString: dbUrl });
+      const adapter = new PrismaPg({ connectionString: dbUrl }, adapterOptions);
       this.prisma = new PrismaClient({
         adapter,
       });

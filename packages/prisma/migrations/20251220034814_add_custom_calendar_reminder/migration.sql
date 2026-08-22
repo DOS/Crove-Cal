@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "public"."DestinationCalendar" ADD COLUMN     "customCalendarReminder" INTEGER;
+ALTER TABLE "DestinationCalendar" ADD COLUMN     "customCalendarReminder" INTEGER;

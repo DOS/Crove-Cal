@@ -5,7 +5,7 @@
 
 */
 -- AlterTable
-ALTER TABLE "public"."SeatChangeLog" ADD COLUMN     "operationId" TEXT;
+ALTER TABLE "SeatChangeLog" ADD COLUMN     "operationId" TEXT;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SeatChangeLog_teamId_operationId_key" ON "public"."SeatChangeLog"("teamId", "operationId");
+CREATE UNIQUE INDEX "SeatChangeLog_teamId_operationId_key" ON "SeatChangeLog"("teamId", "operationId");

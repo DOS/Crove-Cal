@@ -1,2 +1,2 @@
 -- CreateIndex
-CREATE INDEX "Booking_fromReschedule_idx" ON "public"."Booking"("fromReschedule");
+CREATE INDEX "Booking_fromReschedule_idx" ON "Booking"("fromReschedule");

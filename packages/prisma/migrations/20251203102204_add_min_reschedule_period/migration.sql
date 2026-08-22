@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "public"."EventType" ADD COLUMN     "minimumRescheduleNotice" INTEGER;
+ALTER TABLE "EventType" ADD COLUMN     "minimumRescheduleNotice" INTEGER;

@@ -5,4 +5,4 @@
 
 */
 -- AlterTable
-ALTER TABLE "public"."users" ALTER COLUMN "uuid" SET NOT NULL;
+ALTER TABLE "users" ALTER COLUMN "uuid" SET NOT NULL;

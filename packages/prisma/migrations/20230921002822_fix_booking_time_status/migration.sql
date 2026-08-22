@@ -2,7 +2,7 @@
 
 -- DROP VIEW public."BookingsTimeStatus";
 
-CREATE OR REPLACE VIEW public."BookingTimeStatus"
+CREATE OR REPLACE VIEW "BookingTimeStatus"
  AS
  SELECT "Booking".id,
     "Booking".uid,

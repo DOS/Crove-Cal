@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "public"."OrganizationSettings" ADD COLUMN     "orgAutoJoinOnSignup" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "OrganizationSettings" ADD COLUMN     "orgAutoJoinOnSignup" BOOLEAN NOT NULL DEFAULT true;

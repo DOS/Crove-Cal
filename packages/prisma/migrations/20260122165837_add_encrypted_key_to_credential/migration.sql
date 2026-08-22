@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "public"."Credential" ADD COLUMN     "encryptedKey" TEXT;
+ALTER TABLE "Credential" ADD COLUMN     "encryptedKey" TEXT;

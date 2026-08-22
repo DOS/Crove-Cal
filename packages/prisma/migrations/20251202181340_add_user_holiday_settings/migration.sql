@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "public"."UserHolidaySettings" (
+CREATE TABLE "UserHolidaySettings" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "countryCode" TEXT,
@@ -11,7 +11,7 @@ CREATE TABLE "public"."UserHolidaySettings" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserHolidaySettings_userId_key" ON "public"."UserHolidaySettings"("userId");
+CREATE UNIQUE INDEX "UserHolidaySettings_userId_key" ON "UserHolidaySettings"("userId");
 
 -- AddForeignKey
-ALTER TABLE "public"."UserHolidaySettings" ADD CONSTRAINT "UserHolidaySettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "public"."users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "UserHolidaySettings" ADD CONSTRAINT "UserHolidaySettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

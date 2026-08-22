@@ -5,10 +5,10 @@
 
 */
 -- AlterTable
-ALTER TABLE "public"."users" ADD COLUMN     "uuid" UUID;
+ALTER TABLE "users" ADD COLUMN     "uuid" UUID;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_uuid_key" ON "public"."users"("uuid");
+CREATE UNIQUE INDEX "users_uuid_key" ON "users"("uuid");
 
 -- Backfill UUIDs in batches to avoid table locking on large datasets
 -- Uses FOR UPDATE SKIP LOCKED to prevent blocking other transactions
@@ -22,15 +22,15 @@ BEGIN
   LOOP
     WITH batch AS (
       SELECT id
-      FROM "public"."users"
+      FROM "users"
       WHERE uuid IS NULL
       LIMIT batch_size
       FOR UPDATE SKIP LOCKED
     )
-    UPDATE "public"."users"
+    UPDATE "users"
     SET uuid = gen_random_uuid()
     FROM batch
-    WHERE "public"."users".id = batch.id;
+    WHERE "users".id = batch.id;
     
     GET DIAGNOSTICS rows_updated = ROW_COUNT;
     total_updated := total_updated + rows_updated;

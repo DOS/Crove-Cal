@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "public"."OAuthClient" ADD COLUMN     "isTrusted" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "OAuthClient" ADD COLUMN     "isTrusted" BOOLEAN NOT NULL DEFAULT false;

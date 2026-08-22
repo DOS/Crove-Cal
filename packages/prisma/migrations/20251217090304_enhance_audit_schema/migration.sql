@@ -5,10 +5,10 @@
 
 */
 -- AlterTable
-ALTER TABLE "public"."AuditActor" ADD COLUMN     "credentialId" INTEGER;
+ALTER TABLE "AuditActor" ADD COLUMN     "credentialId" INTEGER;
 
 -- CreateIndex
-CREATE INDEX "AuditActor_credentialId_idx" ON "public"."AuditActor"("credentialId");
+CREATE INDEX "AuditActor_credentialId_idx" ON "AuditActor"("credentialId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AuditActor_credentialId_key" ON "public"."AuditActor"("credentialId");
+CREATE UNIQUE INDEX "AuditActor_credentialId_key" ON "AuditActor"("credentialId");

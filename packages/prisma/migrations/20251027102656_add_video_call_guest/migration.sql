@@ -1,8 +1,8 @@
 -- AlterTable
-ALTER TABLE "public"."CalVideoSettings" ADD COLUMN     "requireEmailForGuests" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "CalVideoSettings" ADD COLUMN     "requireEmailForGuests" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateTable
-CREATE TABLE "public"."VideoCallGuest" (
+CREATE TABLE "VideoCallGuest" (
     "id" TEXT NOT NULL,
     "bookingUid" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -15,10 +15,10 @@ CREATE TABLE "public"."VideoCallGuest" (
 );
 
 -- CreateIndex
-CREATE INDEX "VideoCallGuest_bookingUid_idx" ON "public"."VideoCallGuest"("bookingUid");
+CREATE INDEX "VideoCallGuest_bookingUid_idx" ON "VideoCallGuest"("bookingUid");
 
 -- CreateIndex
-CREATE INDEX "VideoCallGuest_email_idx" ON "public"."VideoCallGuest"("email");
+CREATE INDEX "VideoCallGuest_email_idx" ON "VideoCallGuest"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "VideoCallGuest_bookingUid_email_key" ON "public"."VideoCallGuest"("bookingUid", "email");
+CREATE UNIQUE INDEX "VideoCallGuest_bookingUid_email_key" ON "VideoCallGuest"("bookingUid", "email");
