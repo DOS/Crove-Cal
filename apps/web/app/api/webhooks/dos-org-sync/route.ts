@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { ProfileRepository } from "@calcom/features/profile/repositories/ProfileRepository";
 import slugify from "@calcom/lib/slugify";
 import prisma from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
@@ -22,10 +23,16 @@ interface DosWebhookPayload {
 function verifyHmacSignature(rawBody: string, signatureHeader: string | null, secret: string): boolean {
   if (!signatureHeader || !secret) return false;
   const signature = signatureHeader.startsWith("sha256=") ? signatureHeader.slice(7) : signatureHeader;
-
   const expectedSignature = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
 
-  return timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+  const sigBuffer = Buffer.from(signature, "hex");
+  const expectedBuffer = Buffer.from(expectedSignature, "hex");
+
+  if (sigBuffer.length !== expectedBuffer.length || sigBuffer.length === 0) {
+    return false;
+  }
+
+  return timingSafeEqual(sigBuffer, expectedBuffer);
 }
 
 export async function POST(req: NextRequest) {
@@ -34,11 +41,12 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-dos-signature");
     const secret = process.env.DOS_SYNC_WEBHOOK_SECRET || process.env.OIDC_CLIENT_SECRET;
 
-    if (secret && signature) {
-      const isValid = verifyHmacSignature(rawBody, signature, secret);
-      if (!isValid) {
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-      }
+    if (!secret) {
+      return NextResponse.json({ error: "Webhook secret is not configured" }, { status: 500 });
+    }
+
+    if (!signature || !verifyHmacSignature(rawBody, signature, secret)) {
+      return NextResponse.json({ error: "Invalid or missing signature" }, { status: 401 });
     }
 
     const payload: DosWebhookPayload = JSON.parse(rawBody);
@@ -58,8 +66,9 @@ export async function POST(req: NextRequest) {
         let team = await prisma.team.findFirst({
           where: {
             isOrganization: true,
-            OR: [{ metadata: { path: ["dosOrgId"], equals: orgId } }, { slug: orgSlug }],
+            metadata: { path: ["dosOrgId"], equals: orgId },
           },
+          select: { id: true, metadata: true },
         });
 
         if (!team) {
@@ -82,6 +91,7 @@ export async function POST(req: NextRequest) {
                 dosOrgId: orgId,
               },
             },
+            select: { id: true, metadata: true },
           });
         } else {
           await prisma.team.update({
@@ -102,7 +112,7 @@ export async function POST(req: NextRequest) {
         const team = await prisma.team.findFirst({
           where: {
             isOrganization: true,
-            OR: [{ metadata: { path: ["dosOrgId"], equals: orgId } }, { slug: orgSlug }],
+            metadata: { path: ["dosOrgId"], equals: orgId },
           },
           select: { id: true },
         });
@@ -119,8 +129,9 @@ export async function POST(req: NextRequest) {
         let team = await prisma.team.findFirst({
           where: {
             isOrganization: true,
-            OR: [{ metadata: { path: ["dosOrgId"], equals: orgId } }, { slug: orgSlug }],
+            metadata: { path: ["dosOrgId"], equals: orgId },
           },
+          select: { id: true },
         });
 
         if (!team) {
@@ -143,6 +154,7 @@ export async function POST(req: NextRequest) {
                 dosOrgId: orgId,
               },
             },
+            select: { id: true },
           });
         }
 
@@ -153,6 +165,12 @@ export async function POST(req: NextRequest) {
                 equals: data.user_email,
                 mode: "insensitive",
               },
+            },
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              organizationId: true,
             },
           });
 
@@ -167,6 +185,12 @@ export async function POST(req: NextRequest) {
                 username: newUsername,
                 emailVerified: new Date(),
                 organizationId: team.id,
+              },
+              select: {
+                id: true,
+                email: true,
+                username: true,
+                organizationId: true,
               },
             });
           }
@@ -197,6 +221,32 @@ export async function POST(req: NextRequest) {
               accepted: true,
             },
           });
+
+          const orgUsername = user.username || user.email.split("@")[0];
+          await prisma.profile.upsert({
+            create: {
+              uid: ProfileRepository.generateProfileUid(),
+              userId: user.id,
+              organizationId: team.id,
+              username: orgUsername,
+            },
+            update: {
+              username: orgUsername,
+            },
+            where: {
+              userId_organizationId: {
+                userId: user.id,
+                organizationId: team.id,
+              },
+            },
+          });
+
+          if (!user.organizationId) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { organizationId: team.id },
+            });
+          }
         }
         break;
       }
@@ -205,7 +255,7 @@ export async function POST(req: NextRequest) {
         const team = await prisma.team.findFirst({
           where: {
             isOrganization: true,
-            OR: [{ metadata: { path: ["dosOrgId"], equals: orgId } }, { slug: orgSlug }],
+            metadata: { path: ["dosOrgId"], equals: orgId },
           },
           select: { id: true },
         });

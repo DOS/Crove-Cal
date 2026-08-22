@@ -1,3 +1,4 @@
+import { ProfileRepository } from "@calcom/features/profile/repositories/ProfileRepository";
 import slugify from "@calcom/lib/slugify";
 import prisma from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
@@ -14,6 +15,13 @@ export async function syncDosOrganizations(userId: number, organizations?: DosOr
     return;
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, username: true, organizationId: true },
+  });
+
+  if (!user) return;
+
   for (const org of organizations) {
     if (!org.id && !org.name) continue;
 
@@ -21,15 +29,25 @@ export async function syncDosOrganizations(userId: number, organizations?: DosOr
     const orgName = org.name || "Default Organization";
     const orgSlug = org.slug ? slugify(org.slug) : slugify(orgName);
 
-    let team = await prisma.team.findFirst({
-      where: {
-        isOrganization: true,
-        OR: [...(orgId ? [{ metadata: { path: ["dosOrgId"], equals: orgId } }] : []), { slug: orgSlug }],
-      },
-      select: {
-        id: true,
-      },
-    });
+    let team = orgId
+      ? await prisma.team.findFirst({
+          where: {
+            isOrganization: true,
+            metadata: { path: ["dosOrgId"], equals: orgId },
+          },
+          select: {
+            id: true,
+          },
+        })
+      : await prisma.team.findFirst({
+          where: {
+            isOrganization: true,
+            slug: orgSlug,
+          },
+          select: {
+            id: true,
+          },
+        });
 
     if (!team) {
       let uniqueSlug = orgSlug;
@@ -84,16 +102,31 @@ export async function syncDosOrganizations(userId: number, organizations?: DosOr
       },
     });
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { organizationId: true },
+    const orgUsername = user.username || user.email.split("@")[0];
+    await prisma.profile.upsert({
+      create: {
+        uid: ProfileRepository.generateProfileUid(),
+        userId: user.id,
+        organizationId: team.id,
+        username: orgUsername,
+      },
+      update: {
+        username: orgUsername,
+      },
+      where: {
+        userId_organizationId: {
+          userId: user.id,
+          organizationId: team.id,
+        },
+      },
     });
 
-    if (!user?.organizationId) {
+    if (!user.organizationId) {
       await prisma.user.update({
         where: { id: userId },
         data: { organizationId: team.id },
       });
+      user.organizationId = team.id;
     }
   }
 }

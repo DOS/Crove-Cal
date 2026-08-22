@@ -1104,6 +1104,15 @@ export const getOptions = ({
               },
             });
 
+            if (account.provider === "dos-id" || account.provider === "oidc") {
+              const orgs = (
+                user as unknown as {
+                  organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
+                }
+              )?.organizations;
+              await syncDosOrganizations(existingUserWithEmail.id, orgs);
+            }
+
             if (existingUserWithEmail.twoFactorEnabled) {
               return loginWithTotp(existingUserWithEmail.email);
             } else {
