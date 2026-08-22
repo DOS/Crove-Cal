@@ -7,7 +7,21 @@ import { excludeLockedUsersExtension } from "./extensions/exclude-locked-users";
 import { excludePendingPaymentsExtension } from "./extensions/exclude-pending-payment-teams";
 import { PrismaClient, type Prisma } from "./generated/prisma/client";
 
+function getSchemaFromUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url.replace(/^postgresql:\/\//, "http://").replace(/^postgres:\/\//, "http://"));
+    return parsed.searchParams.get("schema") || undefined;
+  } catch {
+    const match = url.match(/[?&]schema=([^&]+)/);
+    return match ? match[1] : undefined;
+  }
+}
+
 const connectionString = process.env.DATABASE_URL || "";
+const schema = getSchemaFromUrl(connectionString);
+const adapterOptions = schema ? { schema } : undefined;
+
 const pool =
   process.env.USE_POOL === "true" || process.env.USE_POOL === "1"
     ? new Pool({
@@ -17,7 +31,7 @@ const pool =
       })
     : undefined;
 
-const adapter = pool ? new PrismaPg(pool) : new PrismaPg({ connectionString });
+const adapter = pool ? new PrismaPg(pool, adapterOptions) : new PrismaPg({ connectionString }, adapterOptions);
 const prismaOptions: Prisma.PrismaClientOptions = {
   adapter,
 };
@@ -52,7 +66,11 @@ export const customPrisma = (options?: Prisma.PrismaClientOptions) => {
 
   if (options?.datasources?.db?.url) {
     const customConnectionString = options.datasources.db.url;
-    const customAdapter = new PrismaPg({ connectionString: customConnectionString });
+    const customSchema = getSchemaFromUrl(customConnectionString);
+    const customAdapter = new PrismaPg(
+      { connectionString: customConnectionString },
+      customSchema ? { schema: customSchema } : undefined
+    );
 
     const { datasources: _datasources, ...restOptions } = options;
     finalOptions = {
