@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "public"."EventType" ADD COLUMN     "redirectUrlOnNoRoutingFormResponse" TEXT;
+ALTER TABLE "EventType" ADD COLUMN     "redirectUrlOnNoRoutingFormResponse" TEXT;

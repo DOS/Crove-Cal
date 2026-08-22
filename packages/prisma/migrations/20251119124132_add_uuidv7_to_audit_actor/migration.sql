@@ -7,14 +7,14 @@
 
 */
 
-ALTER TABLE "public"."BookingAudit" DROP CONSTRAINT "BookingAudit_actorId_fkey";
+ALTER TABLE "BookingAudit" DROP CONSTRAINT "BookingAudit_actorId_fkey";
 
-ALTER TABLE "public"."BookingAudit" ALTER COLUMN "actorId" TYPE UUID USING "actorId"::UUID;
+ALTER TABLE "BookingAudit" ALTER COLUMN "actorId" TYPE UUID USING "actorId"::UUID;
 
-ALTER TABLE "public"."AuditActor" DROP CONSTRAINT "AuditActor_pkey";
+ALTER TABLE "AuditActor" DROP CONSTRAINT "AuditActor_pkey";
 
-ALTER TABLE "public"."AuditActor" ALTER COLUMN "id" TYPE UUID USING "id"::UUID;
+ALTER TABLE "AuditActor" ALTER COLUMN "id" TYPE UUID USING "id"::UUID;
 
-ALTER TABLE "public"."AuditActor" ADD CONSTRAINT "AuditActor_pkey" PRIMARY KEY ("id");
+ALTER TABLE "AuditActor" ADD CONSTRAINT "AuditActor_pkey" PRIMARY KEY ("id");
 
-ALTER TABLE "public"."BookingAudit" ADD CONSTRAINT "BookingAudit_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "public"."AuditActor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "BookingAudit" ADD CONSTRAINT "BookingAudit_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "AuditActor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

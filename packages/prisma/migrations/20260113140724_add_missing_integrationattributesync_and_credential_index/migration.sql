@@ -1,2 +1,2 @@
 -- CreateIndex
-CREATE INDEX "IntegrationAttributeSync_credentialId_idx" ON "public"."IntegrationAttributeSync"("credentialId");
+CREATE INDEX "IntegrationAttributeSync_credentialId_idx" ON "IntegrationAttributeSync"("credentialId");

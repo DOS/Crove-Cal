@@ -1,2 +1,2 @@
 -- AlterEnum
-ALTER TYPE "public"."BookingAuditSource" ADD VALUE 'magic_link';
+ALTER TYPE "BookingAuditSource" ADD VALUE 'magic_link';

@@ -6,10 +6,10 @@
 
 */
 -- CreateEnum
-CREATE TYPE "public"."BookingAuditSource" AS ENUM ('api_v1', 'api_v2', 'webapp', 'webhook', 'unknown');
+CREATE TYPE "BookingAuditSource" AS ENUM ('api_v1', 'api_v2', 'webapp', 'webhook', 'unknown');
 
 -- AlterEnum
-ALTER TYPE "public"."AuditActorType" ADD VALUE 'app';
+ALTER TYPE "AuditActorType" ADD VALUE 'app';
 
 -- AlterEnum
 -- This migration adds more than one value to an enum.
@@ -19,12 +19,12 @@ ALTER TYPE "public"."AuditActorType" ADD VALUE 'app';
 -- the enum.
 
 
-ALTER TYPE "public"."BookingAuditAction" ADD VALUE 'seat_booked';
-ALTER TYPE "public"."BookingAuditAction" ADD VALUE 'seat_rescheduled';
+ALTER TYPE "BookingAuditAction" ADD VALUE 'seat_booked';
+ALTER TYPE "BookingAuditAction" ADD VALUE 'seat_rescheduled';
 
 -- AlterTable
-ALTER TABLE "public"."BookingAudit" ADD COLUMN     "operationId" TEXT NOT NULL,
-ADD COLUMN     "source" "public"."BookingAuditSource" NOT NULL;
+ALTER TABLE "BookingAudit" ADD COLUMN     "operationId" TEXT NOT NULL,
+ADD COLUMN     "source" "BookingAuditSource" NOT NULL;
 
 -- CreateIndex
-CREATE INDEX "BookingAudit_operationId_idx" ON "public"."BookingAudit"("operationId");
+CREATE INDEX "BookingAudit_operationId_idx" ON "BookingAudit"("operationId");

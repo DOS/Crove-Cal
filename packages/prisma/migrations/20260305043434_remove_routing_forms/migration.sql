@@ -82,141 +82,141 @@ DROP FUNCTION IF EXISTS trigger_cleanup_routing_form_response_denormalized_track
 DROP FUNCTION IF EXISTS calculate_booking_status_order(text);
 
 -- Pre-migration cleanup to allow enum variant removal
-DELETE FROM "public"."AssignmentReason" WHERE "reasonEnum" IN ('ROUTING_FORM_ROUTING', 'ROUTING_FORM_ROUTING_FALLBACK');
+DELETE FROM "AssignmentReason" WHERE "reasonEnum" IN ('ROUTING_FORM_ROUTING', 'ROUTING_FORM_ROUTING_FALLBACK');
 
-UPDATE "public"."Webhook"
-SET "eventTriggers" = array_remove("eventTriggers", 'ROUTING_FORM_FALLBACK_HIT'::"public"."WebhookTriggerEvents")
-WHERE "eventTriggers" @> ARRAY['ROUTING_FORM_FALLBACK_HIT']::"public"."WebhookTriggerEvents"[];
+UPDATE "Webhook"
+SET "eventTriggers" = array_remove("eventTriggers", 'ROUTING_FORM_FALLBACK_HIT'::"WebhookTriggerEvents")
+WHERE "eventTriggers" @> ARRAY['ROUTING_FORM_FALLBACK_HIT']::"WebhookTriggerEvents"[];
 
-DELETE FROM "public"."Workflow" WHERE "type" = 'ROUTING_FORM';
+DELETE FROM "Workflow" WHERE "type" = 'ROUTING_FORM';
 
 -- AlterEnum
 BEGIN;
-CREATE TYPE "public"."AssignmentReasonEnum_new" AS ENUM ('REASSIGNED', 'RR_REASSIGNED', 'REROUTED', 'SALESFORCE_ASSIGNMENT');
-ALTER TABLE "public"."AssignmentReason" ALTER COLUMN "reasonEnum" TYPE "public"."AssignmentReasonEnum_new" USING ("reasonEnum"::text::"public"."AssignmentReasonEnum_new");
-ALTER TYPE "public"."AssignmentReasonEnum" RENAME TO "AssignmentReasonEnum_old";
-ALTER TYPE "public"."AssignmentReasonEnum_new" RENAME TO "AssignmentReasonEnum";
-DROP TYPE "public"."AssignmentReasonEnum_old";
+CREATE TYPE "AssignmentReasonEnum_new" AS ENUM ('REASSIGNED', 'RR_REASSIGNED', 'REROUTED', 'SALESFORCE_ASSIGNMENT');
+ALTER TABLE "AssignmentReason" ALTER COLUMN "reasonEnum" TYPE "AssignmentReasonEnum_new" USING ("reasonEnum"::text::"AssignmentReasonEnum_new");
+ALTER TYPE "AssignmentReasonEnum" RENAME TO "AssignmentReasonEnum_old";
+ALTER TYPE "AssignmentReasonEnum_new" RENAME TO "AssignmentReasonEnum";
+DROP TYPE "AssignmentReasonEnum_old";
 COMMIT;
 
 -- AlterEnum
 BEGIN;
-CREATE TYPE "public"."WebhookTriggerEvents_new" AS ENUM ('BOOKING_CREATED', 'BOOKING_PAYMENT_INITIATED', 'BOOKING_PAID', 'BOOKING_RESCHEDULED', 'BOOKING_REQUESTED', 'BOOKING_CANCELLED', 'BOOKING_REJECTED', 'BOOKING_NO_SHOW_UPDATED', 'FORM_SUBMITTED', 'MEETING_ENDED', 'MEETING_STARTED', 'RECORDING_READY', 'INSTANT_MEETING', 'RECORDING_TRANSCRIPTION_GENERATED', 'OOO_CREATED', 'AFTER_HOSTS_CAL_VIDEO_NO_SHOW', 'AFTER_GUESTS_CAL_VIDEO_NO_SHOW', 'FORM_SUBMITTED_NO_EVENT', 'DELEGATION_CREDENTIAL_ERROR', 'WRONG_ASSIGNMENT_REPORT');
-ALTER TABLE "public"."Webhook" ALTER COLUMN "eventTriggers" TYPE "public"."WebhookTriggerEvents_new"[] USING ("eventTriggers"::text::"public"."WebhookTriggerEvents_new"[]);
-ALTER TYPE "public"."WebhookTriggerEvents" RENAME TO "WebhookTriggerEvents_old";
-ALTER TYPE "public"."WebhookTriggerEvents_new" RENAME TO "WebhookTriggerEvents";
-DROP TYPE "public"."WebhookTriggerEvents_old";
+CREATE TYPE "WebhookTriggerEvents_new" AS ENUM ('BOOKING_CREATED', 'BOOKING_PAYMENT_INITIATED', 'BOOKING_PAID', 'BOOKING_RESCHEDULED', 'BOOKING_REQUESTED', 'BOOKING_CANCELLED', 'BOOKING_REJECTED', 'BOOKING_NO_SHOW_UPDATED', 'FORM_SUBMITTED', 'MEETING_ENDED', 'MEETING_STARTED', 'RECORDING_READY', 'INSTANT_MEETING', 'RECORDING_TRANSCRIPTION_GENERATED', 'OOO_CREATED', 'AFTER_HOSTS_CAL_VIDEO_NO_SHOW', 'AFTER_GUESTS_CAL_VIDEO_NO_SHOW', 'FORM_SUBMITTED_NO_EVENT', 'DELEGATION_CREDENTIAL_ERROR', 'WRONG_ASSIGNMENT_REPORT');
+ALTER TABLE "Webhook" ALTER COLUMN "eventTriggers" TYPE "WebhookTriggerEvents_new"[] USING ("eventTriggers"::text::"WebhookTriggerEvents_new"[]);
+ALTER TYPE "WebhookTriggerEvents" RENAME TO "WebhookTriggerEvents_old";
+ALTER TYPE "WebhookTriggerEvents_new" RENAME TO "WebhookTriggerEvents";
+DROP TYPE "WebhookTriggerEvents_old";
 COMMIT;
 
 -- AlterEnum
 BEGIN;
-CREATE TYPE "public"."WorkflowType_new" AS ENUM ('EVENT_TYPE');
-ALTER TABLE "public"."Workflow" ALTER COLUMN "type" DROP DEFAULT;
-ALTER TABLE "public"."Workflow" ALTER COLUMN "type" TYPE "public"."WorkflowType_new" USING ("type"::text::"public"."WorkflowType_new");
-ALTER TYPE "public"."WorkflowType" RENAME TO "WorkflowType_old";
-ALTER TYPE "public"."WorkflowType_new" RENAME TO "WorkflowType";
-DROP TYPE "public"."WorkflowType_old";
-ALTER TABLE "public"."Workflow" ALTER COLUMN "type" SET DEFAULT 'EVENT_TYPE';
+CREATE TYPE "WorkflowType_new" AS ENUM ('EVENT_TYPE');
+ALTER TABLE "Workflow" ALTER COLUMN "type" DROP DEFAULT;
+ALTER TABLE "Workflow" ALTER COLUMN "type" TYPE "WorkflowType_new" USING ("type"::text::"WorkflowType_new");
+ALTER TYPE "WorkflowType" RENAME TO "WorkflowType_old";
+ALTER TYPE "WorkflowType_new" RENAME TO "WorkflowType";
+DROP TYPE "WorkflowType_old";
+ALTER TABLE "Workflow" ALTER COLUMN "type" SET DEFAULT 'EVENT_TYPE';
 COMMIT;
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_Form" DROP CONSTRAINT "App_RoutingForms_Form_teamId_fkey";
+ALTER TABLE "App_RoutingForms_Form" DROP CONSTRAINT "App_RoutingForms_Form_teamId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_Form" DROP CONSTRAINT "App_RoutingForms_Form_updatedById_fkey";
+ALTER TABLE "App_RoutingForms_Form" DROP CONSTRAINT "App_RoutingForms_Form_updatedById_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_Form" DROP CONSTRAINT "App_RoutingForms_Form_userId_fkey";
+ALTER TABLE "App_RoutingForms_Form" DROP CONSTRAINT "App_RoutingForms_Form_userId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_FormResponse" DROP CONSTRAINT "App_RoutingForms_FormResponse_formId_fkey";
+ALTER TABLE "App_RoutingForms_FormResponse" DROP CONSTRAINT "App_RoutingForms_FormResponse_formId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_FormResponse" DROP CONSTRAINT "App_RoutingForms_FormResponse_routedToBookingUid_fkey";
+ALTER TABLE "App_RoutingForms_FormResponse" DROP CONSTRAINT "App_RoutingForms_FormResponse_routedToBookingUid_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_IncompleteBookingActions" DROP CONSTRAINT "App_RoutingForms_IncompleteBookingActions_formId_fkey";
+ALTER TABLE "App_RoutingForms_IncompleteBookingActions" DROP CONSTRAINT "App_RoutingForms_IncompleteBookingActions_formId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_QueuedFormResponse" DROP CONSTRAINT "App_RoutingForms_QueuedFormResponse_actualResponseId_fkey";
+ALTER TABLE "App_RoutingForms_QueuedFormResponse" DROP CONSTRAINT "App_RoutingForms_QueuedFormResponse_actualResponseId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."App_RoutingForms_QueuedFormResponse" DROP CONSTRAINT "App_RoutingForms_QueuedFormResponse_formId_fkey";
+ALTER TABLE "App_RoutingForms_QueuedFormResponse" DROP CONSTRAINT "App_RoutingForms_QueuedFormResponse_formId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."PendingRoutingTrace" DROP CONSTRAINT "PendingRoutingTrace_formResponseId_fkey";
+ALTER TABLE "PendingRoutingTrace" DROP CONSTRAINT "PendingRoutingTrace_formResponseId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."PendingRoutingTrace" DROP CONSTRAINT "PendingRoutingTrace_queuedFormResponseId_fkey";
+ALTER TABLE "PendingRoutingTrace" DROP CONSTRAINT "PendingRoutingTrace_queuedFormResponseId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingFormResponseDenormalized" DROP CONSTRAINT "RoutingFormResponseDenormalized_bookingId_fkey";
+ALTER TABLE "RoutingFormResponseDenormalized" DROP CONSTRAINT "RoutingFormResponseDenormalized_bookingId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingFormResponseDenormalized" DROP CONSTRAINT "RoutingFormResponseDenormalized_id_fkey";
+ALTER TABLE "RoutingFormResponseDenormalized" DROP CONSTRAINT "RoutingFormResponseDenormalized_id_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingFormResponseField" DROP CONSTRAINT "RoutingFormResponseField_responseId_fkey";
+ALTER TABLE "RoutingFormResponseField" DROP CONSTRAINT "RoutingFormResponseField_responseId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingFormResponseField" DROP CONSTRAINT "RoutingFormResponseField_response_fkey";
+ALTER TABLE "RoutingFormResponseField" DROP CONSTRAINT "RoutingFormResponseField_response_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingTrace" DROP CONSTRAINT "RoutingTrace_assignmentReasonId_fkey";
+ALTER TABLE "RoutingTrace" DROP CONSTRAINT "RoutingTrace_assignmentReasonId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingTrace" DROP CONSTRAINT "RoutingTrace_bookingUid_fkey";
+ALTER TABLE "RoutingTrace" DROP CONSTRAINT "RoutingTrace_bookingUid_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingTrace" DROP CONSTRAINT "RoutingTrace_formResponseId_fkey";
+ALTER TABLE "RoutingTrace" DROP CONSTRAINT "RoutingTrace_formResponseId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."RoutingTrace" DROP CONSTRAINT "RoutingTrace_queuedFormResponseId_fkey";
+ALTER TABLE "RoutingTrace" DROP CONSTRAINT "RoutingTrace_queuedFormResponseId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."WorkflowsOnRoutingForms" DROP CONSTRAINT "WorkflowsOnRoutingForms_routingFormId_fkey";
+ALTER TABLE "WorkflowsOnRoutingForms" DROP CONSTRAINT "WorkflowsOnRoutingForms_routingFormId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."WorkflowsOnRoutingForms" DROP CONSTRAINT "WorkflowsOnRoutingForms_workflowId_fkey";
+ALTER TABLE "WorkflowsOnRoutingForms" DROP CONSTRAINT "WorkflowsOnRoutingForms_workflowId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "public"."WrongAssignmentReport" DROP CONSTRAINT "WrongAssignmentReport_routingFormId_fkey";
+ALTER TABLE "WrongAssignmentReport" DROP CONSTRAINT "WrongAssignmentReport_routingFormId_fkey";
 
 -- DropIndex
-DROP INDEX "public"."WrongAssignmentReport_routingFormId_idx";
+DROP INDEX "WrongAssignmentReport_routingFormId_idx";
 
 -- AlterTable
-ALTER TABLE "public"."EventType" DROP COLUMN "redirectUrlOnNoRoutingFormResponse";
+ALTER TABLE "EventType" DROP COLUMN "redirectUrlOnNoRoutingFormResponse";
 
 -- AlterTable
-ALTER TABLE "public"."WrongAssignmentReport" DROP COLUMN "routingFormId";
+ALTER TABLE "WrongAssignmentReport" DROP COLUMN "routingFormId";
 
 -- DropTable
-DROP TABLE "public"."App_RoutingForms_Form";
+DROP TABLE "App_RoutingForms_Form";
 
 -- DropTable
-DROP TABLE "public"."App_RoutingForms_FormResponse";
+DROP TABLE "App_RoutingForms_FormResponse";
 
 -- DropTable
-DROP TABLE "public"."App_RoutingForms_IncompleteBookingActions";
+DROP TABLE "App_RoutingForms_IncompleteBookingActions";
 
 -- DropTable
-DROP TABLE "public"."App_RoutingForms_QueuedFormResponse";
+DROP TABLE "App_RoutingForms_QueuedFormResponse";
 
 -- DropTable
-DROP TABLE "public"."PendingRoutingTrace";
+DROP TABLE "PendingRoutingTrace";
 
 -- DropTable
-DROP TABLE "public"."RoutingFormResponseDenormalized";
+DROP TABLE "RoutingFormResponseDenormalized";
 
 -- DropTable
-DROP TABLE "public"."RoutingFormResponseField";
+DROP TABLE "RoutingFormResponseField";
 
 -- DropTable
-DROP TABLE "public"."RoutingTrace";
+DROP TABLE "RoutingTrace";
 
 -- DropTable
-DROP TABLE "public"."WorkflowsOnRoutingForms";
+DROP TABLE "WorkflowsOnRoutingForms";
 
 -- DropEnum
-DROP TYPE "public"."IncompleteBookingActionType";
+DROP TYPE "IncompleteBookingActionType";

@@ -1,2 +1,2 @@
 -- CreateIndex
-CREATE INDEX "Credential_teamId_idx" ON "public"."Credential"("teamId");
+CREATE INDEX "Credential_teamId_idx" ON "Credential"("teamId");

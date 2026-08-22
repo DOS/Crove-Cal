@@ -1,15 +1,15 @@
 -- CreateEnum
-CREATE TYPE "public"."WorkflowStepAutoTranslatedField" AS ENUM ('REMINDER_BODY', 'EMAIL_SUBJECT');
+CREATE TYPE "WorkflowStepAutoTranslatedField" AS ENUM ('REMINDER_BODY', 'EMAIL_SUBJECT');
 
 -- AlterTable
-ALTER TABLE "public"."WorkflowStep" ADD COLUMN     "autoTranslateEnabled" BOOLEAN NOT NULL DEFAULT false,
+ALTER TABLE "WorkflowStep" ADD COLUMN     "autoTranslateEnabled" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "sourceLocale" TEXT;
 
 -- CreateTable
-CREATE TABLE "public"."WorkflowStepTranslation" (
+CREATE TABLE "WorkflowStepTranslation" (
     "uid" TEXT NOT NULL,
     "workflowStepId" INTEGER NOT NULL,
-    "field" "public"."WorkflowStepAutoTranslatedField" NOT NULL,
+    "field" "WorkflowStepAutoTranslatedField" NOT NULL,
     "sourceLocale" TEXT NOT NULL,
     "targetLocale" TEXT NOT NULL,
     "translatedText" TEXT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE "public"."WorkflowStepTranslation" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "WorkflowStepTranslation_workflowStepId_field_targetLocale_key" ON "public"."WorkflowStepTranslation"("workflowStepId", "field", "targetLocale");
+CREATE UNIQUE INDEX "WorkflowStepTranslation_workflowStepId_field_targetLocale_key" ON "WorkflowStepTranslation"("workflowStepId", "field", "targetLocale");
 
 -- AddForeignKey
-ALTER TABLE "public"."WorkflowStepTranslation" ADD CONSTRAINT "WorkflowStepTranslation_workflowStepId_fkey" FOREIGN KEY ("workflowStepId") REFERENCES "public"."WorkflowStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "WorkflowStepTranslation" ADD CONSTRAINT "WorkflowStepTranslation_workflowStepId_fkey" FOREIGN KEY ("workflowStepId") REFERENCES "WorkflowStep"("id") ON DELETE CASCADE ON UPDATE CASCADE;
