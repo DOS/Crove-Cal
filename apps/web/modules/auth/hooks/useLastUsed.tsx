@@ -4,7 +4,7 @@ import { useLocale } from "@calcom/lib/hooks/useLocale";
 import { localStorage } from "@calcom/lib/webstorage";
 import classNames from "@calcom/ui/classNames";
 
-type LoginType = "saml" | "google" | "microsoft" | "credentials";
+type LoginType = "saml" | "google" | "microsoft" | "credentials" | "dos-id";
 
 export function useLastUsed() {
   const [lastUsed, setLastUsed] = useState<LoginType>();

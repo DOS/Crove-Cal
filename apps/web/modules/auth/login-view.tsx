@@ -36,12 +36,21 @@ interface LoginValues {
   csrfToken: string;
 }
 
-const MicrosoftIcon = () => (
-  <img className="size-4" src="/microsoft-logo.svg" alt="" />
-);
+const MicrosoftIcon = () => <img className="size-4" src="/microsoft-logo.svg" alt="" />;
 
-const GoogleIcon = () => (
-  <img className="size-4" src="/google-icon-colored.svg" alt="" />
+const GoogleIcon = () => <img className="size-4" src="/google-icon-colored.svg" alt="" />;
+
+const DosIdIcon = () => (
+  <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="6" fill="#FF2E29" />
+    <path
+      d="M7 6h5a6 6 0 0 1 0 12H7V6z"
+      stroke="#fff"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
 );
 
 function BackgroundGrid() {
@@ -105,6 +114,7 @@ export default function Login({
   csrfToken,
   isGoogleLoginEnabled,
   isOutlookLoginEnabled,
+  isDosIdLoginEnabled,
   totpEmail,
 }: PageProps) {
   const searchParams = useCompatSearchParams();
@@ -170,7 +180,7 @@ export default function Login({
     else setErrorMessage(errorMessages[res.error] || t("something_went_wrong"));
   };
 
-  const showSocialLogin = isGoogleLoginEnabled || isOutlookLoginEnabled;
+  const showSocialLogin = isGoogleLoginEnabled || isOutlookLoginEnabled || isDosIdLoginEnabled;
   const showSignupLink =
     process.env.NEXT_PUBLIC_DISABLE_SIGNUP !== "true" && searchParams?.get("register") !== "false";
 
@@ -196,6 +206,23 @@ export default function Login({
             {!twoFactorRequired && showSocialLogin && (
               <>
                 <div className="flex flex-col gap-2">
+                  {isDosIdLoginEnabled && (
+                    <Button
+                      className="w-full py-1 bg-[#FF2E29] hover:bg-[#E02622] text-white border-transparent"
+                      disabled={formState.isSubmitting}
+                      data-testid="dos-id"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        setLastUsed("dos-id");
+                        await signIn("dos-id", {
+                          callbackUrl,
+                        });
+                      }}>
+                      <DosIdIcon />
+                      <span>{t("signin_with_dos_id")}</span>
+                      {lastUsed === "dos-id" && <LastUsed />}
+                    </Button>
+                  )}
                   {isGoogleLoginEnabled && (
                     <Button
                       className="w-full py-1"
