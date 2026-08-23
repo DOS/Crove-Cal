@@ -328,7 +328,6 @@ export const getProviders = (): Provider[] => {
       id: "dos-id",
       name: "DOS.Me ID",
       type: "oauth",
-      issuer: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1",
       authorization: {
         url: oidcAuthUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
         params: {
