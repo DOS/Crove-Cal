@@ -300,6 +300,18 @@ export const CalComCredentialsProvider = CredentialsProvider({
   authorize: authorizeCredentials,
 });
 
+type SamlIdpUser = {
+  id: number;
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  name: string;
+  email_verified: boolean;
+  profile: UserProfile;
+  samlTenant?: string;
+};
+
 export const getProviders = (): Provider[] => {
   const oidcClientId = process.env.OIDC_CLIENT_ID;
   const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
