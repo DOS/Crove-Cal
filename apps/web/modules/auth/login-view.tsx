@@ -194,7 +194,9 @@ export default function Login({
         <div className="w-full rounded-xl border border-subtle bg-default p-10 shadow-sm">
           {/* Logo */}
           <div className="mb-2 text-center">
-            <h1 className="font-cal text-xl font-bold text-emphasis">Cal.diy</h1>
+            <h1 className="font-cal text-xl font-bold text-emphasis">
+              {process.env.NEXT_PUBLIC_APP_NAME || "Crove"}
+            </h1>
           </div>
 
           {/* Heading */}
