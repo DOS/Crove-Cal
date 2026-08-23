@@ -314,7 +314,7 @@ type SamlIdpUser = {
 };
 
 export const getProviders = (): Provider[] => {
-  const oidcClientId = process.env.OIDC_CLIENT_ID || "18790ccb-4d71-46cd-ad24-aee5f3ced3da";
+  const oidcClientId = process.env.OIDC_CLIENT_ID || "18790ccb-4d71-48cd-ad24-aee5f3ced3da";
   const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
   const oidcAuthUrl = process.env.OIDC_AUTHORIZATION_URL;
   const oidcTokenUrl = process.env.OIDC_TOKEN_URL;
