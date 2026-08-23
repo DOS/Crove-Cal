@@ -314,50 +314,47 @@ type SamlIdpUser = {
 };
 
 export const getProviders = (): Provider[] => {
-  const oidcClientId = process.env.OIDC_CLIENT_ID;
+  const oidcClientId = process.env.OIDC_CLIENT_ID || "18790ccb-4d71-46cd-ad24-aee5f3ced3da";
   const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
   const oidcAuthUrl = process.env.OIDC_AUTHORIZATION_URL;
   const oidcTokenUrl = process.env.OIDC_TOKEN_URL;
   const oidcUserinfoUrl = process.env.OIDC_USERINFO_URL;
-  const oidcWellKnownUrl = process.env.OIDC_WELL_KNOWN_URL;
 
   const currentProviders: Provider[] = [CalComCredentialsProvider];
 
-  if (oidcClientId && oidcClientSecret) {
-    currentProviders.push({
-      id: "dos-id",
-      name: "DOS.Me ID",
-      type: "oauth",
-      authorization: {
-        url: oidcAuthUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
-        params: {
-          scope: "openid profile email",
-          response_type: "code",
-        },
+  currentProviders.push({
+    id: "dos-id",
+    name: "DOS.Me ID",
+    type: "oauth",
+    authorization: {
+      url: oidcAuthUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
+      params: {
+        scope: "openid profile email",
+        response_type: "code",
       },
-      token: oidcTokenUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
-      userinfo: oidcUserinfoUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
-      checks: ["state"],
-      clientId: oidcClientId,
-      clientSecret: oidcClientSecret,
-      profile(profile: {
-        sub: string;
-        email?: string;
-        name?: string;
-        picture?: string;
-        avatar_url?: string;
-        organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
-      }) {
-        return {
-          id: profile.sub,
-          name: profile.name || profile.email?.split("@")[0] || "User",
-          email: profile.email,
-          image: profile.picture || profile.avatar_url || null,
-          organizations: profile.organizations,
-        } as unknown as User;
-      },
-    } as unknown as Provider);
-  }
+    },
+    token: oidcTokenUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
+    userinfo: oidcUserinfoUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+    checks: ["state"],
+    clientId: oidcClientId,
+    clientSecret: oidcClientSecret,
+    profile(profile: {
+      sub: string;
+      email?: string;
+      name?: string;
+      picture?: string;
+      avatar_url?: string;
+      organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
+    }) {
+      return {
+        id: profile.sub,
+        name: profile.name || profile.email?.split("@")[0] || "User",
+        email: profile.email,
+        image: profile.picture || profile.avatar_url || null,
+        organizations: profile.organizations,
+      } as unknown as User;
+    },
+  } as unknown as Provider);
 
   if (IS_GOOGLE_LOGIN_ENABLED) {
     currentProviders.push(
