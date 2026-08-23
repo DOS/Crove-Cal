@@ -265,6 +265,7 @@ export default async function main() {
 if (require.main === module) {
   (async () => {
     await main();
+    process.exit(0);
   })()
     .catch((e) => {
       console.error(e);
@@ -272,5 +273,6 @@ if (require.main === module) {
     })
     .finally(async () => {
       await prisma.$disconnect();
+      process.exit(0);
     });
 }
