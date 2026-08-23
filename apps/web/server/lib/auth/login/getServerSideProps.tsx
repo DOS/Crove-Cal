@@ -3,7 +3,7 @@ import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { WEBSITE_URL } from "@calcom/lib/constants";
 import { getSafeRedirectUrl } from "@calcom/lib/getSafeRedirectUrl";
 import prisma from "@calcom/prisma";
-import { IS_DOS_ID_LOGIN_ENABLED, IS_GOOGLE_LOGIN_ENABLED } from "@server/lib/constants";
+import { IS_GOOGLE_LOGIN_ENABLED, isDosIdLoginEnabled } from "@server/lib/constants";
 import { jwtVerify } from "jose";
 import type { GetServerSidePropsContext } from "next";
 import { getCsrfToken } from "next-auth/react";
@@ -89,7 +89,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       csrfToken: await getCsrfToken(context),
       isGoogleLoginEnabled: IS_GOOGLE_LOGIN_ENABLED,
       isOutlookLoginEnabled: false,
-      isDosIdLoginEnabled: IS_DOS_ID_LOGIN_ENABLED,
+      isDosIdLoginEnabled: isDosIdLoginEnabled(),
       totpEmail,
     },
   };

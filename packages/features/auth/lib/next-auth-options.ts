@@ -300,117 +300,106 @@ export const CalComCredentialsProvider = CredentialsProvider({
   authorize: authorizeCredentials,
 });
 
-const providers: Provider[] = [CalComCredentialsProvider];
-type SamlIdpUser = {
-  id: number;
-  userId: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  name: string;
-  email_verified: boolean;
-  profile: UserProfile;
-  samlTenant?: string;
-};
+export const getProviders = (): Provider[] => {
+  const oidcClientId = process.env.OIDC_CLIENT_ID;
+  const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
+  const oidcAuthUrl = process.env.OIDC_AUTHORIZATION_URL;
+  const oidcTokenUrl = process.env.OIDC_TOKEN_URL;
+  const oidcUserinfoUrl = process.env.OIDC_USERINFO_URL;
+  const oidcWellKnownUrl = process.env.OIDC_WELL_KNOWN_URL;
 
-import { syncDosOrganizations } from "./syncDosOrganizations";
+  const currentProviders: Provider[] = [CalComCredentialsProvider];
 
-const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID;
-const OIDC_CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET;
-const OIDC_AUTHORIZATION_URL = process.env.OIDC_AUTHORIZATION_URL;
-const OIDC_TOKEN_URL = process.env.OIDC_TOKEN_URL;
-const OIDC_USERINFO_URL = process.env.OIDC_USERINFO_URL;
-const OIDC_WELL_KNOWN_URL = process.env.OIDC_WELL_KNOWN_URL;
-const IS_OIDC_LOGIN_ENABLED = !!(OIDC_CLIENT_ID && OIDC_CLIENT_SECRET);
-
-if (IS_OIDC_LOGIN_ENABLED) {
-  providers.push({
-    id: "dos-id",
-    name: "DOS.Me ID",
-    type: "oauth",
-    version: "2.0",
-    clientId: OIDC_CLIENT_ID,
-    clientSecret: OIDC_CLIENT_SECRET,
-    wellKnown: OIDC_WELL_KNOWN_URL || undefined,
-    authorization: {
-      url: OIDC_AUTHORIZATION_URL || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
-      params: {
-        scope: "openid profile email",
-        response_type: "code",
-      },
-    },
-    token: OIDC_TOKEN_URL || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
-    userinfo: OIDC_USERINFO_URL || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
-    profile(profile: {
-      sub: string;
-      email?: string;
-      name?: string;
-      picture?: string;
-      avatar_url?: string;
-      organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
-    }) {
-      return {
-        id: profile.sub,
-        name: profile.name || profile.email?.split("@")[0] || "User",
-        email: profile.email,
-        image: profile.picture || profile.avatar_url || null,
-        organizations: profile.organizations,
-      } as unknown as User;
-    },
-  } as unknown as Provider);
-}
-
-if (IS_GOOGLE_LOGIN_ENABLED) {
-  providers.push(
-    GoogleProvider({
-      clientId: GOOGLE_CLIENT_ID,
-      clientSecret: GOOGLE_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
+  if (oidcClientId && oidcClientSecret) {
+    currentProviders.push({
+      id: "dos-id",
+      name: "DOS.Me ID",
+      type: "oauth",
+      version: "2.0",
+      clientId: oidcClientId,
+      clientSecret: oidcClientSecret,
+      wellKnown: oidcWellKnownUrl || undefined,
       authorization: {
+        url: oidcAuthUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
         params: {
-          scope: [...GOOGLE_OAUTH_SCOPES, ...GOOGLE_CALENDAR_SCOPES].join(" "),
-          access_type: "offline",
-          prompt: "consent",
+          scope: "openid profile email",
+          response_type: "code",
         },
       },
-    })
-  );
-}
-
-if (OUTLOOK_LOGIN_ENABLED && OUTLOOK_CLIENT_ID && OUTLOOK_CLIENT_SECRET) {
-  providers.push(
-    AzureADProvider({
-      clientId: OUTLOOK_CLIENT_ID,
-      clientSecret: OUTLOOK_CLIENT_SECRET,
-      allowDangerousEmailAccountLinking: true,
-      authorization: {
-        params: {
-          scope: ["openid", "profile", "email", ...MICROSOFT_CALENDAR_SCOPES].join(" "),
-          prompt: "consent",
-        },
-      },
-      // Azure AD returns base64-encoded picture data (~9KB) that bloats the JWT cookie.
-      // we exclude it here and fetch the profile photo separately via Microsoft Graph API.
-      profile(profile) {
+      token: oidcTokenUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
+      userinfo: oidcUserinfoUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+      profile(profile: {
+        sub: string;
+        email?: string;
+        name?: string;
+        picture?: string;
+        avatar_url?: string;
+        organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
+      }) {
         return {
           id: profile.sub,
-          name: profile.name,
+          name: profile.name || profile.email?.split("@")[0] || "User",
           email: profile.email,
-          image: null,
-        };
+          image: profile.picture || profile.avatar_url || null,
+          organizations: profile.organizations,
+        } as unknown as User;
       },
+    } as unknown as Provider);
+  }
+
+  if (IS_GOOGLE_LOGIN_ENABLED) {
+    currentProviders.push(
+      GoogleProvider({
+        clientId: GOOGLE_CLIENT_ID,
+        clientSecret: GOOGLE_CLIENT_SECRET,
+        allowDangerousEmailAccountLinking: true,
+        authorization: {
+          params: {
+            scope: [...GOOGLE_OAUTH_SCOPES, ...GOOGLE_CALENDAR_SCOPES].join(" "),
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      })
+    );
+  }
+
+  if (OUTLOOK_LOGIN_ENABLED && OUTLOOK_CLIENT_ID && OUTLOOK_CLIENT_SECRET) {
+    currentProviders.push(
+      AzureADProvider({
+        clientId: OUTLOOK_CLIENT_ID,
+        clientSecret: OUTLOOK_CLIENT_SECRET,
+        allowDangerousEmailAccountLinking: true,
+        authorization: {
+          params: {
+            scope: ["openid", "profile", "email", ...MICROSOFT_CALENDAR_SCOPES].join(" "),
+            prompt: "consent",
+          },
+        },
+        profile(profile) {
+          return {
+            id: profile.sub,
+            name: profile.name,
+            email: profile.email,
+            image: null,
+          };
+        },
+      })
+    );
+  }
+
+  currentProviders.push(
+    EmailProvider({
+      type: "email",
+      maxAge: 10 * 60 * 60,
+      sendVerificationRequest: async (props) => (await import("./sendVerificationRequest")).default(props),
     })
   );
-}
 
-providers.push(
-  EmailProvider({
-    type: "email",
-    maxAge: 10 * 60 * 60, // Magic links are valid for 10 min only
-    // Here we setup the sendVerificationRequest that calls the email template with the identifier (email) and token to verify.
-    sendVerificationRequest: async (props) => (await import("./sendVerificationRequest")).default(props),
-  })
-);
+  return currentProviders;
+};
+
+const providers: Provider[] = getProviders();
 
 function isNumber(n: string) {
   return !Number.isNaN(parseFloat(n)) && !Number.isNaN(+n);
@@ -460,7 +449,7 @@ export const getOptions = ({
     verifyRequest: "/auth/verify",
     // newUser: "/auth/new", // New users will be directed here on first sign in (leave the property out if not of interest)
   },
-  providers,
+  providers: getProviders(),
   callbacks: {
     async jwt({
       // Always available but with a little difference in value
