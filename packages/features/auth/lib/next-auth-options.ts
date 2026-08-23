@@ -335,7 +335,7 @@ export const getProviders = (): Provider[] => {
     },
     token: oidcTokenUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
     userinfo: oidcUserinfoUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
-    checks: ["state"],
+    checks: ["pkce", "state"],
     clientId: oidcClientId,
     clientSecret: oidcClientSecret,
     profile(profile: {
