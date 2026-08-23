@@ -180,7 +180,8 @@ export default function Login({
     else setErrorMessage(errorMessages[res.error] || t("something_went_wrong"));
   };
 
-  const showSocialLogin = isGoogleLoginEnabled || isOutlookLoginEnabled || isDosIdLoginEnabled;
+  const isDosIdAuthEnabled = isDosIdLoginEnabled || process.env.NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED === "true";
+  const showSocialLogin = isGoogleLoginEnabled || isOutlookLoginEnabled || isDosIdAuthEnabled;
   const showSignupLink =
     process.env.NEXT_PUBLIC_DISABLE_SIGNUP !== "true" && searchParams?.get("register") !== "false";
 
@@ -206,7 +207,7 @@ export default function Login({
             {!twoFactorRequired && showSocialLogin && (
               <>
                 <div className="flex flex-col gap-2">
-                  {isDosIdLoginEnabled && (
+                  {isDosIdAuthEnabled && (
                     <Button
                       className="w-full py-1 bg-[#FF2E29] hover:bg-[#E02622] text-white border-transparent"
                       disabled={formState.isSubmitting}
