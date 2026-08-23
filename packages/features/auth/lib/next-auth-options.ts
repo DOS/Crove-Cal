@@ -54,6 +54,7 @@ import { dub } from "./dub";
 import { ErrorCode } from "./ErrorCode";
 import CalComAdapter from "./next-auth-custom-adapter";
 import { verifyPassword } from "./verifyPassword";
+import { syncDosOrganizations } from "./syncDosOrganizations";
 
 type UserWithProfiles = NonNullable<
   Awaited<ReturnType<UserRepository["findByEmailAndIncludeProfilesAndPassword"]>>
