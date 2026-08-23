@@ -341,6 +341,7 @@ export const getProviders = (): Provider[] => {
     profile(profile: {
       sub: string;
       email?: string;
+      email_verified?: boolean;
       name?: string;
       picture?: string;
       avatar_url?: string;
@@ -350,6 +351,7 @@ export const getProviders = (): Provider[] => {
         id: profile.sub,
         name: profile.name || profile.email?.split("@")[0] || "User",
         email: profile.email,
+        emailVerified: profile.email_verified ?? true,
         image: profile.picture || profile.avatar_url || null,
         organizations: profile.organizations,
       } as unknown as User;
