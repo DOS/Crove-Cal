@@ -316,9 +316,6 @@ type SamlIdpUser = {
 export const getProviders = (): Provider[] => {
   const oidcClientId = process.env.OIDC_CLIENT_ID || "18790ccb-4d71-48cd-ad24-aee5f3ced3da";
   const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
-  const oidcAuthUrl = process.env.OIDC_AUTHORIZATION_URL;
-  const oidcTokenUrl = process.env.OIDC_TOKEN_URL;
-  const oidcUserinfoUrl = process.env.OIDC_USERINFO_URL;
 
   const currentProviders: Provider[] = [CalComCredentialsProvider];
 
@@ -338,6 +335,11 @@ export const getProviders = (): Provider[] => {
     checks: ["pkce", "state"],
     clientId: oidcClientId,
     clientSecret: oidcClientSecret,
+    client: {
+      client_id: oidcClientId,
+      client_secret: oidcClientSecret,
+      token_endpoint_auth_method: "client_secret_basic",
+    },
     profile(profile: {
       sub: string;
       email?: string;
@@ -355,6 +357,10 @@ export const getProviders = (): Provider[] => {
         image: profile.picture || profile.avatar_url || null,
         organizations: profile.organizations,
       } as unknown as User;
+    },
+    options: {
+      clientId: oidcClientId,
+      clientSecret: oidcClientSecret,
     },
   } as unknown as Provider);
 

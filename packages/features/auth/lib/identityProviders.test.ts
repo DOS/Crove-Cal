@@ -6,7 +6,7 @@ describe("identityProviders", () => {
   describe("NEXTAUTH_TO_IDENTITY_PROVIDER", () => {
     it("contains exactly the expected mapping keys", () => {
       expect(Object.keys(NEXTAUTH_TO_IDENTITY_PROVIDER).sort()).toEqual(
-        ["azure-ad", "cal", "google", "saml", "saml-idp"].sort()
+        ["azure-ad", "cal", "dos-id", "google", "oidc", "saml", "saml-idp"].sort()
       );
     });
   });
@@ -18,6 +18,14 @@ describe("identityProviders", () => {
 
     it("maps 'google' to GOOGLE", () => {
       expect(getIdentityProvider("google")).toBe(IdentityProvider.GOOGLE);
+    });
+
+    it("maps 'dos-id' to SAML", () => {
+      expect(getIdentityProvider("dos-id")).toBe(IdentityProvider.SAML);
+    });
+
+    it("maps 'oidc' to SAML", () => {
+      expect(getIdentityProvider("oidc")).toBe(IdentityProvider.SAML);
     });
 
     it("maps 'saml' to SAML", () => {
