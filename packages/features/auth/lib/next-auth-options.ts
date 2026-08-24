@@ -1065,6 +1065,20 @@ export const getOptions = ({
         if (existingUserWithEmail) {
           // if self-hosted then we can allow auto-merge of identity providers if email is verified
           if (isVerified && existingUserWithEmail.identityProvider !== IdentityProvider.CAL) {
+            if (account.provider === "dos-id" || account.provider === "oidc") {
+              const orgs = (
+                user as unknown as {
+                  organizations?: Array<{
+                    id?: string | number;
+                    name?: string;
+                    role?: string;
+                    slug?: string;
+                  }>;
+                }
+              )?.organizations;
+              await syncDosOrganizations(existingUserWithEmail.id, orgs);
+            }
+
             if (existingUserWithEmail.twoFactorEnabled) {
               return loginWithTotp(existingUserWithEmail.email);
             } else {
