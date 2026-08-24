@@ -313,19 +313,16 @@ type SamlIdpUser = {
   samlTenant?: string;
 };
 
-export const getProviders = (): Provider[] => {
-  const oidcClientId = process.env.OIDC_CLIENT_ID || "18790ccb-4d71-48cd-ad24-aee5f3ced3da";
-  const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
+export function DosIdProvider(options: { clientId: string; clientSecret?: string }): Provider {
+  const wellKnown =
+    process.env.OIDC_WELL_KNOWN_URL ||
+    "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/.well-known/openid-configuration";
 
-  const currentProviders: Provider[] = [CalComCredentialsProvider];
-
-  currentProviders.push({
+  return {
     id: "dos-id",
     name: "DOS.Me ID",
     type: "oauth",
-    wellKnown:
-      process.env.OIDC_WELL_KNOWN_URL ||
-      "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/.well-known/openid-configuration",
+    wellKnown,
     authorization: {
       params: {
         scope: "openid profile email",
@@ -333,13 +330,6 @@ export const getProviders = (): Provider[] => {
     },
     idToken: true,
     checks: ["pkce", "state"],
-    clientId: oidcClientId,
-    clientSecret: oidcClientSecret,
-    client: {
-      client_id: oidcClientId,
-      client_secret: oidcClientSecret,
-      token_endpoint_auth_method: "client_secret_basic",
-    },
     profile(profile: {
       sub: string;
       email?: string;
@@ -358,11 +348,21 @@ export const getProviders = (): Provider[] => {
         organizations: profile.organizations,
       } as unknown as User;
     },
-    options: {
+    options,
+  } as unknown as Provider;
+}
+
+export const getProviders = (): Provider[] => {
+  const oidcClientId = process.env.OIDC_CLIENT_ID || "18790ccb-4d71-48cd-ad24-aee5f3ced3da";
+  const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
+
+  const currentProviders: Provider[] = [
+    CalComCredentialsProvider,
+    DosIdProvider({
       clientId: oidcClientId,
       clientSecret: oidcClientSecret,
-    },
-  } as unknown as Provider);
+    }),
+  ];
 
   if (IS_GOOGLE_LOGIN_ENABLED) {
     currentProviders.push(
