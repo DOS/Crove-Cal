@@ -330,6 +330,13 @@ export function DosIdProvider(options: { clientId: string; clientSecret?: string
     },
     idToken: true,
     checks: ["pkce", "state"],
+    clientId: options.clientId,
+    clientSecret: options.clientSecret,
+    client: {
+      client_id: options.clientId,
+      client_secret: options.clientSecret,
+      token_endpoint_auth_method: "client_secret_basic",
+    },
     profile(profile: {
       sub: string;
       email?: string;
