@@ -313,7 +313,14 @@ type SamlIdpUser = {
   samlTenant?: string;
 };
 
-export function DosIdProvider(options: { clientId: string; clientSecret?: string }): Provider {
+export function DosIdProvider(options?: { clientId?: string; clientSecret?: string }): Provider {
+  const oidcClientId = (
+    options?.clientId ||
+    process.env.OIDC_CLIENT_ID ||
+    "18790ccb-4d71-48cd-ad24-aee5f3ced3da"
+  ).trim();
+  const oidcClientSecret =
+    (options?.clientSecret || process.env.OIDC_CLIENT_SECRET || "").trim() || undefined;
   const wellKnown =
     process.env.OIDC_WELL_KNOWN_URL ||
     "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/.well-known/openid-configuration";
@@ -330,11 +337,11 @@ export function DosIdProvider(options: { clientId: string; clientSecret?: string
     },
     idToken: true,
     checks: ["pkce", "state"],
-    clientId: options.clientId,
-    clientSecret: options.clientSecret,
+    clientId: oidcClientId,
+    clientSecret: oidcClientSecret,
     client: {
-      client_id: options.clientId,
-      client_secret: options.clientSecret,
+      client_id: oidcClientId,
+      client_secret: oidcClientSecret,
       token_endpoint_auth_method: "client_secret_basic",
     },
     profile(profile: {
@@ -355,20 +362,17 @@ export function DosIdProvider(options: { clientId: string; clientSecret?: string
         organizations: profile.organizations,
       } as unknown as User;
     },
-    options,
+    options: {
+      clientId: oidcClientId,
+      clientSecret: oidcClientSecret,
+    },
   } as unknown as Provider;
 }
 
 export const getProviders = (): Provider[] => {
-  const oidcClientId = process.env.OIDC_CLIENT_ID || "18790ccb-4d71-48cd-ad24-aee5f3ced3da";
-  const oidcClientSecret = process.env.OIDC_CLIENT_SECRET;
-
   const currentProviders: Provider[] = [
     CalComCredentialsProvider,
-    DosIdProvider({
-      clientId: oidcClientId,
-      clientSecret: oidcClientSecret,
-    }),
+    DosIdProvider(),
   ];
 
   if (IS_GOOGLE_LOGIN_ENABLED) {
