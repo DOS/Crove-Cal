@@ -319,8 +319,12 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
     process.env.OIDC_CLIENT_ID ||
     "18790ccb-4d71-48cd-ad24-aee5f3ced3da"
   ).trim();
-  const oidcClientSecret =
-    (options?.clientSecret || process.env.OIDC_CLIENT_SECRET || "").trim() || undefined;
+  const oidcClientSecret = (
+    options?.clientSecret ||
+    process.env.OIDC_CLIENT_SECRET ||
+    process.env.CROVE_POSTIZ_OAUTH_CLIENT_SECRET ||
+    "mjlRNUhS0J0aaW6ahIYvaJM_566XJCHxUbIN_LfCQ1o"
+  ).trim();
   const wellKnown =
     process.env.OIDC_WELL_KNOWN_URL ||
     "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/.well-known/openid-configuration";
@@ -426,8 +430,6 @@ export const getProviders = (): Provider[] => {
 
   return currentProviders;
 };
-
-const providers: Provider[] = getProviders();
 
 function isNumber(n: string) {
   return !Number.isNaN(parseFloat(n)) && !Number.isNaN(+n);
