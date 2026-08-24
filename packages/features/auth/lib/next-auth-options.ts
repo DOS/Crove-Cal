@@ -341,12 +341,14 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
     },
     idToken: true,
     checks: ["pkce", "state"],
+    idTokenSignedResponseAlg: "ES256",
     clientId: oidcClientId,
     clientSecret: oidcClientSecret,
     client: {
       client_id: oidcClientId,
       client_secret: oidcClientSecret,
       token_endpoint_auth_method: "client_secret_basic",
+      id_token_signed_response_alg: "ES256",
     },
     profile(profile: {
       sub: string;
@@ -374,10 +376,7 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
 }
 
 export const getProviders = (): Provider[] => {
-  const currentProviders: Provider[] = [
-    CalComCredentialsProvider,
-    DosIdProvider(),
-  ];
+  const currentProviders: Provider[] = [CalComCredentialsProvider, DosIdProvider()];
 
   if (IS_GOOGLE_LOGIN_ENABLED) {
     currentProviders.push(
