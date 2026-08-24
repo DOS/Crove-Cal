@@ -342,6 +342,7 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
     idToken: true,
     checks: ["pkce", "state"],
     idTokenSignedResponseAlg: "ES256",
+    allowDangerousEmailAccountLinking: true,
     clientId: oidcClientId,
     clientSecret: oidcClientSecret,
     client: {
