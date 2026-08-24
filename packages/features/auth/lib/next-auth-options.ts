@@ -326,15 +326,15 @@ export const getProviders = (): Provider[] => {
     id: "dos-id",
     name: "DOS.Me ID",
     type: "oauth",
+    wellKnown:
+      process.env.OIDC_WELL_KNOWN_URL ||
+      "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/.well-known/openid-configuration",
     authorization: {
-      url: oidcAuthUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
       params: {
         scope: "openid profile email",
-        response_type: "code",
       },
     },
-    token: oidcTokenUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
-    userinfo: oidcUserinfoUrl || "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
+    idToken: true,
     checks: ["pkce", "state"],
     clientId: oidcClientId,
     clientSecret: oidcClientSecret,
