@@ -11,10 +11,6 @@ export interface DosOrgClaim {
 }
 
 export async function syncDosOrganizations(userId: number, organizations?: DosOrgClaim[]): Promise<void> {
-  if (!organizations || !Array.isArray(organizations) || organizations.length === 0) {
-    return;
-  }
-
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, email: true, username: true, organizationId: true },
@@ -22,7 +18,29 @@ export async function syncDosOrganizations(userId: number, organizations?: DosOr
 
   if (!user) return;
 
-  for (const org of organizations) {
+  let orgList = organizations;
+  if (!orgList || !Array.isArray(orgList) || orgList.length === 0) {
+    try {
+      const dbOrgs = await prisma.$queryRaw<DosOrgClaim[]>`
+        SELECT om.org_id as id, o.name, o.slug, om.role
+        FROM public.org_members om
+        JOIN public.organizations o ON om.org_id = o.id
+        JOIN auth.users u ON om.user_id = u.id
+        WHERE u.email = ${user.email}
+      `;
+      if (dbOrgs && Array.isArray(dbOrgs) && dbOrgs.length > 0) {
+        orgList = dbOrgs;
+      }
+    } catch {
+      // ignore if query not supported or no rows
+    }
+  }
+
+  if (!orgList || !Array.isArray(orgList) || orgList.length === 0) {
+    return;
+  }
+
+  for (const org of orgList) {
     if (!org.id && !org.name) continue;
 
     const orgId = String(org.id || "");
