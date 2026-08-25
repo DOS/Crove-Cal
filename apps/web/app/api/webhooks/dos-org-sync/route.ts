@@ -7,7 +7,20 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 interface DosWebhookPayload {
-  event: "org.created" | "org.updated" | "org.deleted" | "org.member_added" | "org.member_removed";
+  event:
+    | "organization.created"
+    | "org.created"
+    | "organization.updated"
+    | "org.updated"
+    | "organization.deleted"
+    | "org.deleted"
+    | "organization.member_added"
+    | "organization.member.added"
+    | "org.member_added"
+    | "organization.member_removed"
+    | "organization.member.removed"
+    | "org.member_removed"
+    | "user.updated";
   timestamp: string;
   data: {
     org_id: string;
@@ -61,7 +74,9 @@ export async function POST(req: NextRequest) {
     const orgSlug = data.org_slug ? slugify(data.org_slug) : slugify(orgName);
 
     switch (event) {
+      case "organization.created":
       case "org.created":
+      case "organization.updated":
       case "org.updated": {
         let team = await prisma.team.findFirst({
           where: {
@@ -108,6 +123,7 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "organization.deleted":
       case "org.deleted": {
         const team = await prisma.team.findFirst({
           where: {
@@ -125,6 +141,8 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "organization.member_added":
+      case "organization.member.added":
       case "org.member_added": {
         let team = await prisma.team.findFirst({
           where: {
@@ -251,6 +269,8 @@ export async function POST(req: NextRequest) {
         break;
       }
 
+      case "organization.member_removed":
+      case "organization.member.removed":
       case "org.member_removed": {
         const team = await prisma.team.findFirst({
           where: {
