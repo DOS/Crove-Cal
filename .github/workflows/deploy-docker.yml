@@ -49,6 +49,11 @@ jobs:
             NEXT_PUBLIC_WEBAPP_URL=http://localhost:3000
             NEXT_PUBLIC_API_V2_URL=http://localhost:5555/api/v2
             NEXT_PUBLIC_LICENSE_CONSENT=agree
+            NEXT_PUBLIC_APP_NAME=Crove
+            NEXT_PUBLIC_COMPANY_NAME=MetaDOS LLC
+            NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=help@crove.com
+            ORGANIZATIONS_ENABLED=1
+            NEXT_PUBLIC_ENABLE_PROFILE_SWITCHER=1
             NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED=true
             OIDC_CLIENT_ID=18790ccb-4d71-48cd-ad24-aee5f3ced3da
             CALCOM_TELEMETRY_DISABLED=1

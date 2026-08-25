@@ -8,6 +8,7 @@ vi.mock("@calcom/lib/constants", async () => {
   const actual = (await vi.importActual("@calcom/lib/constants")) as typeof import("@calcom/lib/constants");
   return {
     ...actual,
+    COMPANY_NAME: "MetaDOS LLC",
     CALCOM_VERSION: "mockedVersion",
   };
 });
@@ -16,7 +17,7 @@ describe("Tests for Credits component", () => {
   test("Should render credits section with links", () => {
     render(<Credits />);
 
-    const creditsLinkElement = screen.getByRole("link", { name: /Cal\.com, Inc\./i });
+    const creditsLinkElement = screen.getByRole("link", { name: /MetaDOS LLC/i });
     expect(creditsLinkElement).toBeInTheDocument();
     expect(creditsLinkElement).toHaveAttribute("href", "https://go.cal.com/credits");
 
