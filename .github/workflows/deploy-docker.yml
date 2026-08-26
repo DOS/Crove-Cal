@@ -52,7 +52,6 @@ jobs:
             NEXT_PUBLIC_APP_NAME=Crove
             NEXT_PUBLIC_COMPANY_NAME=MetaDOS LLC
             NEXT_PUBLIC_SUPPORT_MAIL_ADDRESS=help@crove.com
-            ORGANIZATIONS_ENABLED=1
             NEXT_PUBLIC_ENABLE_PROFILE_SWITCHER=1
             NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED=true
             OIDC_CLIENT_ID=18790ccb-4d71-48cd-ad24-aee5f3ced3da
