@@ -17,6 +17,7 @@ concurrency:
 jobs:
   delete_reports:
     name: Delete Reports
+    if: github.repository == 'calcom/cal.diy'
     runs-on: ubuntu-latest
     env:
       # Contains all reports for deleted branch
