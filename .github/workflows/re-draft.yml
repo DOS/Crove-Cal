@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   download-context:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: github.repository == 'calcom/cal.diy' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: 'Download artifact'

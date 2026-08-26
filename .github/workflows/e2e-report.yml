@@ -189,7 +189,7 @@ jobs:
   merge-reports:
     name: Merge reports
     needs: [get-pr-info]
-    if: ${{ needs.get-pr-info.outputs.has-blob-reports == 'true' && needs.get-pr-info.outputs.pr-number != '' }}
+    if: ${{ github.repository_owner == 'calcom' && needs.get-pr-info.outputs.has-blob-reports == 'true' && needs.get-pr-info.outputs.pr-number != '' }}
     uses: ./.github/workflows/merge-reports.yml
     with:
       source_run_id: ${{ needs.get-pr-info.outputs.source-run-id }}
@@ -201,7 +201,7 @@ jobs:
   publish-report:
     name: Publish HTML report
     needs: [get-pr-info, merge-reports]
-    if: ${{ needs.get-pr-info.outputs.pr-number != '' }}
+    if: ${{ github.repository_owner == 'calcom' && needs.get-pr-info.outputs.pr-number != '' }}
     uses: ./.github/workflows/publish-report.yml
     with:
       head_branch: ${{ needs.get-pr-info.outputs.head-branch }}

@@ -10,6 +10,7 @@ on:
     - cron: "*/15 * * * *"
 jobs:
   cron-scheduleEmailReminders:
+    if: github.repository == 'calcom/cal.diy'
     env:
       APP_URL: ${{ secrets.APP_URL }}
       CRON_API_KEY: ${{ secrets.CRON_API_KEY }}
