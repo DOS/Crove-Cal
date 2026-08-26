@@ -1,0 +1,28 @@
+{
+  "name": "@calcom/mcp-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Model Context Protocol (MCP) Server for Crove Cal & Crove OS Agents",
+  "main": "src/index.ts",
+  "bin": {
+    "crove-cal-mcp": "./bin/crove-cal-mcp.ts"
+  },
+  "scripts": {
+    "start": "ts-node --transpile-only src/index.ts",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write ."
+  },
+  "dependencies": {
+    "@calcom/prisma": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.10",
+    "@calcom/tsconfig": "workspace:*",
+    "@types/node": "20.17.24",
+    "ts-node": "^10.9.2",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.8"
+  }
+}

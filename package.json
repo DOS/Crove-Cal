@@ -15,6 +15,7 @@
     "example-apps/*"
   ],
   "scripts": {
+    "mcp:server": "yarn workspace @calcom/mcp-server start",
     "patch:branding": "ts-node --transpile-only scripts/patch-crove-branding.ts",
     "app-store-cli": "yarn workspace @calcom/app-store-cli",
     "app-store:build": "yarn turbo build --filter=@calcom/app-store-cli",
