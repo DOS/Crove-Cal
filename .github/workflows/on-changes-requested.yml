@@ -5,7 +5,7 @@ on:
 
 jobs:
   changes-requested:
-    if: github.event.review.state == 'changes_requested'
+    if: github.repository == 'calcom/cal.diy' && github.event.review.state == 'changes_requested'
     runs-on: ubuntu-latest
     steps:
       - name: Explanation

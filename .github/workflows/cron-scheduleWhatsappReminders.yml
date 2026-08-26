@@ -8,6 +8,7 @@ on:
     - cron: "*/15 * * * *"
 jobs:
   cron-scheduleWhatsappReminders:
+    if: github.repository == 'calcom/cal.diy'
     env:
       APP_URL_EU: ${{ vars.APP_URL_EU }}
       APP_URL_US: ${{ vars.APP_URL_US }}

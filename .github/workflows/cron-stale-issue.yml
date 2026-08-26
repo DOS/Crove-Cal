@@ -13,6 +13,7 @@ on:
   workflow_dispatch:
 jobs:
   stale:
+    if: github.repository == 'calcom/cal.diy'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/stale@v7

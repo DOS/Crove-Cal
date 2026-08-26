@@ -10,7 +10,7 @@ concurrency:
 jobs:
   i18n:
     name: Run i18n
-    if: ${{ github.repository == 'calcom/cal.diy' && secrets.CI_LINGO_DOT_DEV_API_KEY != '' }}
+    if: github.repository == 'calcom/cal.diy'
     runs-on: ubuntu-latest
     permissions:
       actions: write

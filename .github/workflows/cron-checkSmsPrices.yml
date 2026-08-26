@@ -8,6 +8,7 @@ on:
     - cron: "* * * * *"
 jobs:
   cron-checkSmsPrices:
+    if: github.repository == 'calcom/cal.diy'
     env:
       APP_URL: ${{ secrets.APP_URL }}
       CRON_API_KEY: ${{ secrets.CRON_API_KEY }}

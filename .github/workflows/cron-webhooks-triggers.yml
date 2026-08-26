@@ -8,6 +8,7 @@ on:
     - cron: "* * * * *"
 jobs:
   cron-webhookTriggers:
+    if: github.repository == 'calcom/cal.diy'
     env:
       APP_URL_US: ${{ vars.APP_URL_US }}
       APP_URL_EU: ${{ vars.APP_URL_EU }}

@@ -8,6 +8,7 @@ on:
     - cron: "59 23 28-31 * *"
 jobs:
   cron-monthlyDigestEmail:
+    if: github.repository == 'calcom/cal.diy'
     env:
       APP_URL: ${{ secrets.APP_URL }}
       CRON_API_KEY: ${{ secrets.CRON_API_KEY }}

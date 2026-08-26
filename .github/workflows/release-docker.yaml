@@ -81,6 +81,7 @@ jobs:
 
   release-amd64:
     name: "Release AMD64"
+    if: github.repository == 'calcom/cal.diy'
     needs: prepare
     runs-on: ubuntu-latest
     env:
@@ -107,7 +108,7 @@ jobs:
           use-as-latest: "true"
 
       - name: Notify Slack on Success
-        if: success() && secrets.CI_SLACK_WEBHOOK_URL != ''
+        if: success() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
@@ -118,7 +119,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.CI_SLACK_WEBHOOK_URL }}
 
       - name: Notify Slack on Failure
-        if: failure() && secrets.CI_SLACK_WEBHOOK_URL != ''
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
@@ -130,6 +131,7 @@ jobs:
 
   release-arm:
     name: "Release ARM"
+    if: github.repository == 'calcom/cal.diy'
     needs: prepare
     runs-on: ubuntu-24.04-arm
     env:
@@ -155,7 +157,7 @@ jobs:
           push-image: ${{ (github.event_name == 'push' || inputs.PUSH_IMAGE) && 'true' || 'false' }}
 
       - name: Notify Slack on Success
-        if: success() && secrets.CI_SLACK_WEBHOOK_URL != ''
+        if: success() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
@@ -166,7 +168,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.CI_SLACK_WEBHOOK_URL }}
 
       - name: Notify Slack on Failure
-        if: failure() && secrets.CI_SLACK_WEBHOOK_URL != ''
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
         uses: slackapi/slack-github-action@v1.24.0
         with:
           payload: |
