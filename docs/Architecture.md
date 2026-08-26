@@ -79,12 +79,17 @@ Khi AI Agent (như Crove Desk AI, DOSClaw, DOS AI) cần thực hiện các tác
 
 | MCP Tool Name | Mục đích |
 |---|---|
-| `crove_cal.get_available_slots` | Tra cứu các khung giờ rảnh khả dụng của người dùng hoặc nhóm |
-| `crove_cal.create_booking` | Tự động đặt lịch hẹn mới từ hội thoại hoặc ticket hỗ trợ |
-| `crove_cal.reschedule_booking` | Đổi lịch hẹn theo yêu cầu của khách hàng |
-| `crove_cal.cancel_booking` | Hủy lịch hẹn và giải phóng slot |
-| `twenty_crm.*` | Tương tác dữ liệu CRM (khách hàng, cơ hội, nhiệm vụ) |
-| `crove_sign.*` | Tra cứu và gửi hợp đồng điện tử |
+| `crove_cal_list_event_types` | Danh sách các loại lịch hẹn khả dụng của người dùng hoặc tổ chức |
+| `crove_cal_get_event_type` | Xem chi tiết cấu hình và câu hỏi đặt lịch của một event type |
+| `crove_cal_get_available_slots` | Tra cứu các khung giờ rảnh khả dụng của người dùng hoặc nhóm |
+| `crove_cal_create_booking` | Tự động đặt lịch hẹn mới từ hội thoại hoặc ticket hỗ trợ |
+| `crove_cal_get_booking` | Lấy chi tiết lịch hẹn theo UID hoặc Booking ID |
+| `crove_cal_reschedule_booking` | Đổi lịch hẹn sang thời gian mới theo yêu cầu khách hàng |
+| `crove_cal_cancel_booking` | Hủy lịch hẹn và giải phóng slot |
+| `crove_cal_list_bookings` | Tra cứu danh sách các lịch hẹn theo email người tham gia / trạng thái |
+
+Package mã nguồn MCP Server: `packages/mcp-server`
+Khởi chạy stdio: `yarn mcp:server`
 
 ---
 
@@ -104,7 +109,33 @@ Crove Cal kết nối trực tiếp với OIDC Server chuẩn của DOS ID:
 
 ---
 
-## IV. Quy chuẩn Nhận diện Thương hiệu & Fork Maintenance
+## IV. Cấu hình Email Giao dịch (Amazon SES & Brevo via SMTP)
+
+Crove Cal sử dụng cấu hình SMTP tiêu chuẩn của Node.js (`nodemailer`), hỗ trợ trực tiếp mọi nhà cung cấp gửi email giao dịch (Amazon SES, Brevo) mà không cần phụ thuộc vào API độc quyền của SendGrid hay Resend:
+
+### 1. Cấu hình Amazon SES (Simple Email Service)
+```env
+EMAIL_FROM="notifications@crove.com"
+EMAIL_FROM_NAME="Crove Cal"
+EMAIL_SERVER_HOST="email-smtp.ap-southeast-1.amazonaws.com" # Thay bằng region AWS SES của bạn
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER="<SES_SMTP_USERNAME>"
+EMAIL_SERVER_PASSWORD="<SES_SMTP_PASSWORD>"
+```
+
+### 2. Cấu hình Brevo (Sendinblue)
+```env
+EMAIL_FROM="notifications@crove.com"
+EMAIL_FROM_NAME="Crove Cal"
+EMAIL_SERVER_HOST="smtp-relay.brevo.com"
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER="<BREVO_ACCOUNT_EMAIL>"
+EMAIL_SERVER_PASSWORD="<BREVO_SMTP_KEY>"
+```
+
+---
+
+## V. Quy chuẩn Nhận diện Thương hiệu & Fork Maintenance
 
 Để đảm bảo khả năng merge và đồng bộ mượt mà với phiên bản gốc (`upstream/main` của Cal.com):
 
