@@ -8,6 +8,8 @@ import { NextResponse } from "next/server";
 
 interface DosWebhookPayload {
   event:
+    | "test.ping"
+    | "ping"
     | "organization.created"
     | "org.created"
     | "organization.updated"
@@ -22,15 +24,30 @@ interface DosWebhookPayload {
     | "org.member_removed"
     | "user.updated";
   timestamp: string;
-  data: {
-    org_id: string;
-    org_name: string;
+  data?: {
+    org_id?: string;
+    org_name?: string;
     org_slug?: string;
     user_id?: string;
     user_email?: string;
     user_name?: string;
     role?: "OWNER" | "ADMIN" | "MEMBER" | string;
+    [key: string]: unknown;
   };
+}
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "Content-Type, Authorization, x-dos-signature, x-dos-event, x-dos-delivery, x-dos-timestamp",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
 }
 
 function verifyHmacSignature(rawBody: string, signatureHeader: string | null, secret: string): boolean {
@@ -55,18 +72,31 @@ export async function POST(req: NextRequest) {
     const secret = process.env.DOS_SYNC_WEBHOOK_SECRET || process.env.OIDC_CLIENT_SECRET;
 
     if (!secret) {
-      return NextResponse.json({ error: "Webhook secret is not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Webhook secret is not configured" },
+        { status: 500, headers: corsHeaders }
+      );
     }
 
     if (!signature || !verifyHmacSignature(rawBody, signature, secret)) {
-      return NextResponse.json({ error: "Invalid or missing signature" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid or missing signature" },
+        { status: 401, headers: corsHeaders }
+      );
     }
 
     const payload: DosWebhookPayload = JSON.parse(rawBody);
     const { event, data } = payload;
 
+    if (event === "test.ping" || event === "ping") {
+      return NextResponse.json(
+        { success: true, message: "pong", timestamp: new Date().toISOString() },
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
     if (!data?.org_id) {
-      return NextResponse.json({ error: "Missing org_id in payload" }, { status: 400 });
+      return NextResponse.json({ error: "Missing org_id in payload" }, { status: 400, headers: corsHeaders });
     }
 
     const orgId = String(data.org_id);
@@ -304,12 +334,15 @@ export async function POST(req: NextRequest) {
       }
 
       default:
-        return NextResponse.json({ message: `Ignored event: ${event}` }, { status: 200 });
+        return NextResponse.json(
+          { message: `Ignored event: ${event}` },
+          { status: 200, headers: corsHeaders }
+        );
     }
 
-    return NextResponse.json({ success: true, event }, { status: 200 });
+    return NextResponse.json({ success: true, event }, { status: 200, headers: corsHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal Server Error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500, headers: corsHeaders });
   }
 }
