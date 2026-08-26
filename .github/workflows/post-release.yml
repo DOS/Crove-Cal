@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   release:
+    if: github.repository == 'calcom/cal.diy'
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token

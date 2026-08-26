@@ -32,6 +32,7 @@ on:
 jobs:
   prepare:
     name: "Prepare Release"
+    if: github.repository == 'calcom/cal.diy'
     runs-on: ubuntu-latest
     outputs:
       release_tag: ${{ steps.determine-tag.outputs.release_tag }}

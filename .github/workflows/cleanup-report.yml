@@ -9,6 +9,7 @@ permissions:
   pull-requests: write
 jobs:
   cleanup-report:
+    if: github.repository == 'calcom/cal.diy'
     runs-on: ubuntu-latest
     steps:
       - name: Generate GitHub App token
