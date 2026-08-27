@@ -22,6 +22,7 @@
     "./components/command": "./components/command/index.ts",
     "./components/createButton": "./components/createButton/index.ts",
     "./components/credits": "./components/credits/index.ts",
+    "./components/crove-app-switcher": "./components/crove-app-switcher/index.ts",
     "./components/dialog": "./components/dialog/index.ts",
     "./components/disconnect-calendar-integration": "./components/disconnect-calendar-integration/index.ts",
     "./components/divider": "./components/divider/index.ts",

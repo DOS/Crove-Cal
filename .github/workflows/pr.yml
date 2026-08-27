@@ -23,6 +23,7 @@ jobs:
   # This MUST run before any job that checks out PR code and executes it with secrets
   trust-check:
     name: Trust Check
+    if: github.repository == 'calcom/cal.diy'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read

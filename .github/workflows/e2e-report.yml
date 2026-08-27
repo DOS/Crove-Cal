@@ -16,9 +16,7 @@ jobs:
   get-pr-info:
     name: Get PR Info
     runs-on: ubuntu-latest
-    # For workflow_run: only run if the triggering workflow failed
-    # For workflow_dispatch: always run (inputs are provided manually)
-    if: ${{ (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'failure') && github.repository_owner == 'calcom' }}
+    if: github.repository == 'calcom/cal.diy'
     permissions:
       actions: read
       pull-requests: read
