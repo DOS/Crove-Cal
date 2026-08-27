@@ -19,6 +19,7 @@ import { Navigation } from "./navigation/Navigation";
 import { useBottomNavItems } from "./useBottomNavItems";
 import { ProfileDropdown } from "./user-dropdown/ProfileDropdown";
 import { UserDropdown } from "./user-dropdown/UserDropdown";
+import { CroveAppSwitcher } from "@calcom/ui/components/crove-app-switcher";
 
 export type SideBarContainerProps = {
   bannersHeight: number;
@@ -92,7 +93,7 @@ export function SideBar({ bannersHeight, user }: SideBarProps) {
                 </span>
               </div>
             )}
-            <div className="flex w-full justify-end rtl:space-x-reverse">
+            <div className="flex w-full items-center justify-end gap-1 rtl:space-x-reverse">
               <button
                 color="minimal"
                 onClick={() => window.history.back()}
@@ -105,6 +106,7 @@ export function SideBar({ bannersHeight, user }: SideBarProps) {
                 className="group todesktop:block hidden font-medium text-sm text-subtle hover:text-emphasis">
                 <ArrowRightIcon className="h-4 w-4 shrink-0 text-subtle group-hover:text-emphasis" />
               </button>
+              <CroveAppSwitcher />
               {!!user?.org && (
                 <div data-testid="user-dropdown-trigger" className="flex items-center">
                   <UserDropdown small />

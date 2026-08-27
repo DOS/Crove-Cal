@@ -9,6 +9,7 @@ import { Logo } from "@calcom/ui/components/logo";
 
 import { KBarTrigger } from "./Kbar";
 import { UserDropdown } from "./user-dropdown/UserDropdown";
+import { CroveAppSwitcher } from "@calcom/ui/components/crove-app-switcher";
 
 export function TopNavContainer() {
   const { status } = useSession();
@@ -29,6 +30,7 @@ function TopNav() {
           <Logo />
         </Link>
         <div className="flex items-center gap-2 self-center">
+          <CroveAppSwitcher />
           <span className="hover:bg-cal-muted hover:text-emphasis text-default group flex items-center rounded-full text-sm font-medium transition lg:hidden">
             <KBarTrigger />
           </span>
