@@ -6,8 +6,15 @@ import {
   listBookingsHandler,
   rescheduleBookingHandler,
 } from "../tools/bookings";
-import { getEventTypeDetailsHandler, listEventTypesHandler } from "../tools/eventTypes";
+import {
+  createEventTypeHandler,
+  deleteEventTypeHandler,
+  getEventTypeDetailsHandler,
+  listEventTypesHandler,
+  updateEventTypeHandler,
+} from "../tools/eventTypes";
 import { getAvailableSlotsHandler } from "../tools/slots";
+import { getUserProfileHandler, listSchedulesHandler } from "../tools/users";
 import { createCroveCalMcpServer } from "../server";
 
 const mockPrisma = {
@@ -15,6 +22,9 @@ const mockPrisma = {
     findMany: vi.fn(),
     findFirst: vi.fn(),
     findUnique: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
   },
   booking: {
     findMany: vi.fn(),
@@ -22,6 +32,12 @@ const mockPrisma = {
     findUnique: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+  },
+  user: {
+    findFirst: vi.fn(),
+  },
+  schedule: {
+    findMany: vi.fn(),
   },
 };
 
@@ -60,6 +76,78 @@ describe("Crove Cal MCP Tools", () => {
       const result = await getEventTypeDetailsHandler(mockPrisma as any, { eventTypeId: 1 });
       expect(result.id).toBe(1);
       expect(result.slug).toBe("15min");
+    });
+
+    test("createEventTypeHandler should create a new event type", async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 10 });
+      mockPrisma.eventType.create.mockResolvedValue({
+        id: 3,
+        title: "Discovery Call",
+        slug: "discovery-call",
+        length: 30,
+        userId: 10,
+      });
+
+      const result = await createEventTypeHandler(mockPrisma as any, {
+        title: "Discovery Call",
+        slug: "discovery-call",
+        length: 30,
+        username: "joy",
+      });
+
+      expect(result.id).toBe(3);
+      expect(mockPrisma.eventType.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            title: "Discovery Call",
+            slug: "discovery-call",
+            length: 30,
+            userId: 10,
+          }),
+        })
+      );
+    });
+
+    test("updateEventTypeHandler should update an existing event type", async () => {
+      mockPrisma.eventType.findUnique.mockResolvedValue({ id: 3 });
+      mockPrisma.eventType.update.mockResolvedValue({
+        id: 3,
+        title: "Updated Discovery Call",
+        length: 45,
+      });
+
+      const result = await updateEventTypeHandler(mockPrisma as any, {
+        id: 3,
+        title: "Updated Discovery Call",
+        length: 45,
+      });
+
+      expect(result.title).toBe("Updated Discovery Call");
+      expect(mockPrisma.eventType.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 3 },
+          data: expect.objectContaining({
+            title: "Updated Discovery Call",
+            length: 45,
+          }),
+        })
+      );
+    });
+
+    test("deleteEventTypeHandler should delete an event type", async () => {
+      mockPrisma.eventType.findUnique.mockResolvedValue({ id: 3 });
+      mockPrisma.eventType.delete.mockResolvedValue({
+        id: 3,
+        title: "Discovery Call",
+        slug: "discovery-call",
+      });
+
+      const result = await deleteEventTypeHandler(mockPrisma as any, { id: 3 });
+      expect(result.id).toBe(3);
+      expect(mockPrisma.eventType.delete).toHaveBeenCalledWith({
+        where: { id: 3 },
+        select: expect.any(Object),
+      });
     });
   });
 
@@ -243,8 +331,42 @@ describe("Crove Cal MCP Tools", () => {
     });
   });
 
+  describe("Users & Schedules Management", () => {
+    test("getUserProfileHandler should return user profile and organizations", async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({
+        id: 10,
+        username: "joy",
+        email: "joy@dos.ai",
+        name: "JOY",
+        timeZone: "Asia/Ho_Chi_Minh",
+        teams: [{ role: "OWNER", accepted: true, team: { id: 1, name: "JOY", isOrganization: true } }],
+      });
+
+      const result = await getUserProfileHandler(mockPrisma as any, { email: "joy@dos.ai" });
+      expect(result.id).toBe(10);
+      expect(result.username).toBe("joy");
+      expect(result.teams).toHaveLength(1);
+    });
+
+    test("listSchedulesHandler should return schedules with availability intervals", async () => {
+      mockPrisma.user.findFirst.mockResolvedValue({ id: 10 });
+      mockPrisma.schedule.findMany.mockResolvedValue([
+        {
+          id: 1,
+          name: "Working Hours",
+          timeZone: "Asia/Ho_Chi_Minh",
+          availability: [{ id: 1, days: [1, 2, 3, 4, 5], startTime: new Date(), endTime: new Date() }],
+        },
+      ]);
+
+      const result = await listSchedulesHandler(mockPrisma as any, { username: "joy" });
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe("Working Hours");
+    });
+  });
+
   describe("MCP Server Initialization", () => {
-    test("createCroveCalMcpServer should initialize and register tools", () => {
+    test("createCroveCalMcpServer should initialize and register all 13 tools", () => {
       const server = createCroveCalMcpServer(mockPrisma as any);
       expect(server).toBeDefined();
     });
