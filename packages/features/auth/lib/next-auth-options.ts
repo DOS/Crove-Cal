@@ -53,8 +53,8 @@ import { getOrgUsernameFromEmail } from "../signup/utils/getOrgUsernameFromEmail
 import { dub } from "./dub";
 import { ErrorCode } from "./ErrorCode";
 import CalComAdapter from "./next-auth-custom-adapter";
-import { verifyPassword } from "./verifyPassword";
 import { syncDosOrganizations } from "./syncDosOrganizations";
+import { verifyPassword } from "./verifyPassword";
 
 type UserWithProfiles = NonNullable<
   Awaited<ReturnType<UserRepository["findByEmailAndIncludeProfilesAndPassword"]>>
@@ -498,18 +498,6 @@ export const getOptions = ({
       account,
     }) {
       log.debug("callbacks:jwt", safeStringify({ token, user, account, trigger, session }));
-      // The data available in 'session' depends on what data was supplied in update method call of session
-      if (trigger === "update") {
-        return {
-          ...token,
-          profileId: session?.profileId ?? token.profileId ?? null,
-          upId: session?.upId ?? token.upId ?? null,
-          locale: session?.locale ?? token.locale ?? "en",
-          name: session?.name ?? token.name,
-          username: session?.username ?? token.username,
-          email: session?.email ?? token.email,
-        } as JWT;
-      }
       const autoMergeIdentities = async () => {
         const existingUser = await prisma.user.findFirst({
           where: { email: token.email! },
@@ -595,6 +583,17 @@ export const getOptions = ({
               : null,
         } as JWT;
       };
+
+      // The data available in 'session' depends on what data was supplied in update method call of session
+      if (trigger === "update") {
+        token.upId = session?.upId ?? token.upId ?? null;
+        token.profileId = session?.profileId ?? token.profileId ?? null;
+        token.locale = session?.locale ?? token.locale ?? "en";
+        token.name = session?.name ?? token.name;
+        token.username = session?.username ?? token.username;
+        token.email = session?.email ?? token.email;
+        return await autoMergeIdentities();
+      }
       if (!user) {
         return await autoMergeIdentities();
       }
