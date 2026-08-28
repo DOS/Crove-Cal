@@ -352,7 +352,7 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
     client: {
       client_id: oidcClientId,
       client_secret: oidcClientSecret,
-      token_endpoint_auth_method: "client_secret_post",
+      token_endpoint_auth_method: "client_secret_basic",
       id_token_signed_response_alg: "ES256",
     },
     profile(profile: {
