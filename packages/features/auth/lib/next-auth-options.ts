@@ -322,8 +322,8 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
   const oidcClientSecret = (
     options?.clientSecret ||
     process.env.OIDC_CLIENT_SECRET ||
-    process.env.CROVE_POSTIZ_OAUTH_CLIENT_SECRET ||
-    "mjlRNUhS0J0aaW6ahIYvaJM_566XJCHxUbIN_LfCQ1o"
+    process.env.CROVE_OAUTH_CLIENT_SECRET ||
+    "tQbSNFzbP03onxFrgScOfxYfzbvkjSou-gaPVtHh6fg"
   ).trim();
   const wellKnown =
     process.env.OIDC_WELL_KNOWN_URL ||
