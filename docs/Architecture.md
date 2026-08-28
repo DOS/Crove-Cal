@@ -16,21 +16,69 @@ Căn cứ theo quy chuẩn kiến trúc toàn hệ sinh thái, Crove Cal tuân t
 
 ## II. Chuẩn Kiến trúc Đồng bộ 2 Tầng (2-Tier Hybrid Architecture)
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                           CROVE OS 2-TIER HYBRID ARCHITECTURE                           │
-├──────────────────────────────────────────┬──────────────────────────────────────────────┤
-│ TẦNG 1: Đồng bộ Dữ liệu Danh tính & Tổ chức│ TẦNG 2: Deep Agentic Business Actions        │
-│ (Organizations, Memberships, Contacts)   │ (Lên lịch, Tạo Booking, Tra cứu Rảnh/Bận)   │
-├──────────────────────────────────────────┼──────────────────────────────────────────────┤
-│        DATABASE & WEBHOOK SYNC           │                 MCP PROTOCOL                 │
-│      (Local Mirror & Realtime Events)    │      (Model Context Protocol Tool Calling)   │
-│                   │                      │                      │                       │
-│  • DOS-Me (api.dos.me): Master SSOT      │  • crove_cal.get_available_slots(...)        │
-│  • Schema Isolation: cal.users, cal.Team │  • crove_cal.create_booking(...)             │
-│  • Inbound JIT OIDC Sync                 │  • crove_cal.reschedule_booking(...)         │
-│  • Bi-directional Webhook Dispatch       │  • twenty_crm, crove_sign, crove_desk tools  │
-└──────────────────────────────────────────┴──────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph ClientLayer [Client & Agent Interaction Layer]
+        User[End User / Browser]
+        Agent[DOS AI / Crove Desk Agent]
+    end
+
+    subgraph DOS_Identity [Identity & Auth Provider - id.dos.me]
+        SupabaseAuth[Supabase OIDC Server\nRS256 / ES256 PKCE]
+        CustomHook[Custom Access Token Hook\nInjects 'organizations' & 'role']
+    end
+
+    subgraph CroveCalApp [Crove Cal Service - cal.crove.com]
+        NextAuth[NextAuth OIDC Provider\nDosIdProvider]
+        JIT[JIT Sync Logic\nsyncDosOrganizations]
+        WebhookEndpoint[/api/webhooks/dos-org-sync\nHMAC-SHA256 Signed]
+        CalCore[Next.js App Router & tRPC API]
+        MCPServer[Crove Cal MCP Server\n@calcom/mcp-server]
+    end
+
+    subgraph DatabaseLayer [Shared Supabase PostgreSQL Instance]
+        subgraph PublicSchema [public schema - SSOT]
+            DOSOrgs[(public.organizations)]
+            DOSMembers[(public.org_members)]
+            AuthUsers[(auth.users)]
+        end
+        subgraph CalSchema [cal schema - Isolated]
+            CalUsers[(cal.users)]
+            CalTeam[(cal.Team - isOrg)]
+            CalMembership[(cal.Membership)]
+            CalProfile[(cal.Profile)]
+            CalBookings[(cal.Booking)]
+            CalEventTypes[(cal.EventType)]
+        end
+    end
+
+    subgraph OutboundEcosystem [Crove Suite & Satellites]
+        EventRouter[DOS.Me Webhook Dispatcher]
+        CroveCRM[Crove CRM - crm.crove.com]
+        CroveSign[Crove Sign - sign.crove.com]
+        CrovePost[Crove Post - post.crove.com]
+    end
+
+    %% Auth & JIT Flow
+    User -->|1. Sign in with DOS.Me ID| NextAuth
+    NextAuth -->|2. Authorize & PKCE Token Exchange| SupabaseAuth
+    SupabaseAuth -->|3. Trigger Hook & Issue Claims| CustomHook
+    CustomHook -->|4. Return JWT with orgs| NextAuth
+    NextAuth -->|5. On SignIn Callback| JIT
+    JIT -->|6. Upsert Isolated Team & Profile| CalTeam
+    JIT -->|6. Upsert Membership| CalMembership
+    JIT -->|6. Upsert User| CalUsers
+
+    %% Real-time Webhook Flow
+    EventRouter -->|Event: org.member_added / updated / deleted| WebhookEndpoint
+    WebhookEndpoint -->|Verify HMAC & Sync| CalTeam
+    WebhookEndpoint -->|Update Membership| CalMembership
+
+    %% MCP Agentic Flow
+    Agent -->|Call Tool: crove_cal_get_available_slots| MCPServer
+    Agent -->|Call Tool: crove_cal_create_booking| MCPServer
+    MCPServer -->|Query Schedule & Availability| CalEventTypes
+    MCPServer -->|Insert Booking Record| CalBookings
 ```
 
 ### 1. Tầng 1: Đồng bộ Dữ liệu Danh tính & Tổ chức (Identity & Organization Sync)
