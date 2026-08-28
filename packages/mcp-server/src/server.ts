@@ -8,8 +8,15 @@ import {
   listBookingsHandler,
   rescheduleBookingHandler,
 } from "./tools/bookings";
-import { getEventTypeDetailsHandler, listEventTypesHandler } from "./tools/eventTypes";
+import {
+  createEventTypeHandler,
+  deleteEventTypeHandler,
+  getEventTypeDetailsHandler,
+  listEventTypesHandler,
+  updateEventTypeHandler,
+} from "./tools/eventTypes";
 import { getAvailableSlotsHandler } from "./tools/slots";
+import { getUserProfileHandler, listSchedulesHandler } from "./tools/users";
 
 export function createCroveCalMcpServer(prisma: PrismaClient) {
   const server = new McpServer({
@@ -46,7 +53,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
     }
   );
 
-  // Tool 2: get_event_type_details
+  // Tool 2: get_event_type
   server.registerTool(
     "crove_cal_get_event_type",
     {
@@ -74,7 +81,98 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
     }
   );
 
-  // Tool 3: get_available_slots
+  // Tool 3: create_event_type
+  server.registerTool(
+    "crove_cal_create_event_type",
+    {
+      title: "Create Event Type",
+      description: "Create a new meeting/booking event type (e.g., 15min Discovery, 45min Demo).",
+      inputSchema: {
+        title: z.string().describe("Title of the event type (e.g., 'Discovery Call')"),
+        slug: z.string().describe("Unique URL slug (e.g., 'discovery-call')"),
+        length: z.number().describe("Duration of the meeting in minutes (e.g., 30)"),
+        description: z.string().optional().describe("Description shown to attendees"),
+        username: z.string().optional().describe("Username of the host"),
+        userId: z.number().optional().describe("User ID of the host"),
+        requiresConfirmation: z.boolean().optional().describe("Whether host must manually approve bookings"),
+      },
+    },
+    async (args) => {
+      try {
+        const result = await createEventTypeHandler(prisma, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error creating event type: ${message}` }],
+        };
+      }
+    }
+  );
+
+  // Tool 4: update_event_type
+  server.registerTool(
+    "crove_cal_update_event_type",
+    {
+      title: "Update Event Type",
+      description:
+        "Update title, duration, description, or confirmation settings for an existing event type.",
+      inputSchema: {
+        id: z.number().describe("Event Type numeric ID"),
+        title: z.string().optional().describe("New title"),
+        slug: z.string().optional().describe("New slug"),
+        length: z.number().optional().describe("New duration in minutes"),
+        description: z.string().optional().describe("New description"),
+        requiresConfirmation: z.boolean().optional().describe("Update confirmation approval flag"),
+        hidden: z.boolean().optional().describe("Whether to hide event type from public profile"),
+      },
+    },
+    async (args) => {
+      try {
+        const result = await updateEventTypeHandler(prisma, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error updating event type: ${message}` }],
+        };
+      }
+    }
+  );
+
+  // Tool 5: delete_event_type
+  server.registerTool(
+    "crove_cal_delete_event_type",
+    {
+      title: "Delete Event Type",
+      description: "Delete an event type by ID.",
+      inputSchema: {
+        id: z.number().describe("Event Type numeric ID to delete"),
+      },
+    },
+    async (args) => {
+      try {
+        const result = await deleteEventTypeHandler(prisma, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error deleting event type: ${message}` }],
+        };
+      }
+    }
+  );
+
+  // Tool 6: get_available_slots
   server.registerTool(
     "crove_cal_get_available_slots",
     {
@@ -106,7 +204,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
     }
   );
 
-  // Tool 4: create_booking
+  // Tool 7: create_booking
   server.registerTool(
     "crove_cal_create_booking",
     {
@@ -141,7 +239,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
     }
   );
 
-  // Tool 5: get_booking
+  // Tool 8: get_booking
   server.registerTool(
     "crove_cal_get_booking",
     {
@@ -168,7 +266,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
     }
   );
 
-  // Tool 6: reschedule_booking
+  // Tool 9: reschedule_booking
   server.registerTool(
     "crove_cal_reschedule_booking",
     {
@@ -197,7 +295,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
     }
   );
 
-  // Tool 7: cancel_booking
+  // Tool 10: cancel_booking
   server.registerTool(
     "crove_cal_cancel_booking",
     {
@@ -225,7 +323,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
     }
   );
 
-  // Tool 8: list_bookings
+  // Tool 11: list_bookings
   server.registerTool(
     "crove_cal_list_bookings",
     {
@@ -251,6 +349,64 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
         return {
           isError: true,
           content: [{ type: "text", text: `Error listing bookings: ${message}` }],
+        };
+      }
+    }
+  );
+
+  // Tool 12: get_user_profile
+  server.registerTool(
+    "crove_cal_get_user_profile",
+    {
+      title: "Get User Profile",
+      description:
+        "Get user profile details, timezone, default schedule ID, and team memberships in Crove Cal.",
+      inputSchema: {
+        email: z.string().optional().describe("Email address of the user"),
+        username: z.string().optional().describe("Username of the user"),
+        userId: z.number().optional().describe("Numeric ID of the user"),
+      },
+    },
+    async (args) => {
+      try {
+        const result = await getUserProfileHandler(prisma, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error fetching user profile: ${message}` }],
+        };
+      }
+    }
+  );
+
+  // Tool 13: list_schedules
+  server.registerTool(
+    "crove_cal_list_schedules",
+    {
+      title: "List Schedules",
+      description:
+        "Retrieve working hours schedules and daily availability intervals for a user in Crove Cal.",
+      inputSchema: {
+        userId: z.number().optional().describe("User ID"),
+        username: z.string().optional().describe("Username"),
+        email: z.string().optional().describe("Email address"),
+      },
+    },
+    async (args) => {
+      try {
+        const result = await listSchedulesHandler(prisma, args);
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          isError: true,
+          content: [{ type: "text", text: `Error listing schedules: ${message}` }],
         };
       }
     }
