@@ -333,12 +333,16 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
     id: "dos-id",
     name: "DOS.Me ID",
     type: "oauth",
+    issuer: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1",
     wellKnown,
     authorization: {
+      url: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/authorize",
       params: {
-        scope: "openid profile email",
+        scope: "openid profile email offline_access",
       },
     },
+    token: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/token",
+    userinfo: "https://gulptwduchsjcsbndmua.supabase.co/auth/v1/oauth/userinfo",
     idToken: true,
     checks: ["pkce", "state"],
     idTokenSignedResponseAlg: "ES256",
