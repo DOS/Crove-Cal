@@ -18,18 +18,18 @@ vi.mock("next/server", () => {
   class MockNextResponse {
     body: unknown;
     status: number;
-    headers: Record<string, string>;
+    headers: Headers;
 
     constructor(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
       this.body = body;
       this.status = init?.status ?? 200;
-      this.headers = init?.headers ?? {};
+      this.headers = new Headers(init?.headers ?? {});
     }
 
     static json(data: unknown, init?: { status?: number; headers?: Record<string, string> }) {
       return {
         status: init?.status ?? 200,
-        headers: init?.headers ?? {},
+        headers: new Headers(init?.headers ?? {}),
         json: async () => data,
       };
     }
@@ -58,7 +58,7 @@ describe("/api/webhooks/brevo", () => {
     const { OPTIONS } = await import("../route");
     const res = await OPTIONS();
     expect(res.status).toBe(204);
-    expect(res.headers["Access-Control-Allow-Origin"]).toBe("*");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
   });
 
   test("POST should return 500 when Brevo is not configured", async () => {

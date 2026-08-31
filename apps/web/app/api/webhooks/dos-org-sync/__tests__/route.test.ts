@@ -37,18 +37,18 @@ vi.mock("next/server", () => {
   class MockNextResponse {
     body: unknown;
     status: number;
-    headers: Record<string, string>;
+    headers: Headers;
 
     constructor(body: unknown, init?: { status?: number; headers?: Record<string, string> }) {
       this.body = body;
       this.status = init?.status ?? 200;
-      this.headers = init?.headers ?? {};
+      this.headers = new Headers(init?.headers ?? {});
     }
 
     static json(data: unknown, init?: { status?: number; headers?: Record<string, string> }) {
       return {
         status: init?.status ?? 200,
-        headers: init?.headers ?? {},
+        headers: new Headers(init?.headers ?? {}),
         json: async () => data,
       };
     }
@@ -89,8 +89,8 @@ describe("/api/webhooks/dos-org-sync", () => {
     const { OPTIONS } = await import("../route");
     const response = await OPTIONS();
     expect(response.status).toBe(204);
-    expect(response.headers["Access-Control-Allow-Origin"]).toBe("*");
-    expect(response.headers["Access-Control-Allow-Methods"]).toContain("POST");
+    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    expect(response.headers.get("access-control-allow-methods")).toContain("POST");
   });
 
   test("POST should return 500 when webhook secret is missing", async () => {

@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader } from "@calcom/ui/co
 import { EmptyScreen } from "@calcom/ui/components/empty-screen";
 import { Form, Label, TextField } from "@calcom/ui/components/form";
 import { showToast } from "@calcom/ui/components/toast";
-import { PlusIcon, UsersIcon } from "@coss/ui/icons";
+import { UsersIcon } from "@coss/ui/icons";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -70,7 +70,7 @@ export function TeamsListingView() {
         </div>
         <Button
           type="button"
-          StartIcon={PlusIcon}
+          StartIcon="plus"
           onClick={() => setCreateDialogOpen(true)}
           data-testid="create-team-button">
           {t("create_a_team")}
@@ -130,7 +130,7 @@ export function TeamsListingView() {
         </div>
       ) : (
         <EmptyScreen
-          Icon={UsersIcon}
+          Icon="users"
           headline={t("no_teams_yet")}
           description={t("create_team_description")}
           buttonRaw={
