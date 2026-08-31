@@ -137,6 +137,7 @@ export type {
   OmitPrismaClient as PrismaTransaction,
   // we re-export the native PrismaClient type for backwards-compatibility.
   PrismaClient,
+  Prisma,
 };
 
 /**

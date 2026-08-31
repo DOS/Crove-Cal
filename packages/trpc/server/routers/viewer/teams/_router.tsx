@@ -101,7 +101,7 @@ export const viewerTeamsRouter = router({
       bio: input.bio,
       logoUrl: input.logoUrl,
       hideBookATeamMember: input.hideBookATeamMember,
-      metadata: input.metadata,
+      metadata: input.metadata as any,
     });
   }),
 

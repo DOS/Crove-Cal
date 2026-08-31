@@ -1,6 +1,6 @@
 import { ProfileRepository } from "@calcom/features/profile/repositories/ProfileRepository";
 import slugify from "@calcom/lib/slugify";
-import type { PrismaClient } from "@calcom/prisma";
+import type { Prisma, PrismaClient } from "@calcom/prisma";
 import prisma from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
 
@@ -11,7 +11,7 @@ export interface UpdateOrgInput {
   slug?: string;
   bio?: string;
   logoUrl?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
   lockEventTypeCreationForUsers?: boolean;
 }
 
