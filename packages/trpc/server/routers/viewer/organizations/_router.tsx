@@ -49,7 +49,7 @@ export const viewerOrganizationsRouter = router({
       slug: input.slug,
       bio: input.bio,
       logoUrl: input.logoUrl,
-      metadata: input.metadata,
+      metadata: input.metadata as any,
       lockEventTypeCreationForUsers: input.lockEventTypeCreationForUsers,
     });
   }),

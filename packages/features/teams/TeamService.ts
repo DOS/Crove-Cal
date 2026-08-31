@@ -1,6 +1,6 @@
 import { ProfileRepository } from "@calcom/features/profile/repositories/ProfileRepository";
 import slugify from "@calcom/lib/slugify";
-import type { PrismaClient } from "@calcom/prisma";
+import type { Prisma, PrismaClient } from "@calcom/prisma";
 import prisma from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
 
@@ -11,7 +11,7 @@ export interface CreateTeamInput {
   description?: string;
   parentId?: number | null;
   isOrganization?: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
 }
 
 export interface UpdateTeamInput {
@@ -22,7 +22,7 @@ export interface UpdateTeamInput {
   bio?: string;
   logoUrl?: string;
   hideBookATeamMember?: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
 }
 
 export interface InviteMemberInput {
@@ -57,7 +57,7 @@ export class TeamService {
    * Find all teams and organizations where user is a member
    */
   async findUserTeams(params: { userId: number; includeOrgs?: boolean }) {
-    const where: Parameters<typeof this.db.membership.findMany>[0]["where"] = {
+    const where: Prisma.MembershipWhereInput = {
       userId: params.userId,
       accepted: true,
     };
