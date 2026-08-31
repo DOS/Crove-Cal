@@ -56,3 +56,4 @@ jobs:
             NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED=true
             OIDC_CLIENT_ID=18790ccb-4d71-48cd-ad24-aee5f3ced3da
             CALCOM_TELEMETRY_DISABLED=1
+            CACHE_BUST=${{ github.sha }}
