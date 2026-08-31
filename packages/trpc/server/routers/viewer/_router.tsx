@@ -22,7 +22,9 @@ import { i18nRouter } from "./i18n/_router";
 import { meRouter } from "./me/_router";
 import { oAuthRouter } from "./oAuth/_router";
 import { oooRouter } from "./ooo/_router";
+import { viewerOrganizationsRouter } from "./organizations/_router";
 import { slotsRouter } from "./slots/_router";
+import { viewerTeamsRouter } from "./teams/_router";
 import { travelSchedulesRouter } from "./travelSchedules/_router";
 import { userAdminRouter } from "./users/_router";
 import { webhookRouter } from "./webhook/_router";
@@ -48,6 +50,8 @@ export const viewerRouter = router({
   features: featureFlagRouter,
   feedback: feedbackRouter,
   users: userAdminRouter,
+  teams: viewerTeamsRouter,
+  organizations: viewerOrganizationsRouter,
   oAuth: oAuthRouter,
   googleWorkspace: googleWorkspaceRouter,
   admin: adminRouter,
