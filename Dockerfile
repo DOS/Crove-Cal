@@ -52,14 +52,15 @@ COPY apps/web ./apps/web
 COPY apps/api/v2 ./apps/api/v2
 COPY packages ./packages
 
-RUN yarn config set httpTimeout 1200000
-RUN yarn install
-# Build and make embed servable from web/public/embed folder
-RUN yarn workspace @calcom/trpc run build
-RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
-RUN yarn --cwd apps/web workspace @calcom/web run copy-app-store-static
-RUN yarn --cwd apps/web workspace @calcom/web run build
-RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
+    RUN yarn config set httpTimeout 1200000
+    RUN yarn install
+    # Build and make embed servable from web/public/embed folder
+    RUN yarn workspace @calcom/trpc run build
+    RUN yarn --cwd packages/embeds/embed-core workspace @calcom/embed-core run build
+    ARG CACHE_BUST
+    RUN yarn --cwd apps/web workspace @calcom/web run copy-app-store-static
+    RUN yarn --cwd apps/web workspace @calcom/web run build
+    RUN rm -rf node_modules/.cache .yarn/cache apps/web/.next/cache
 
 FROM node:20 AS builder-two
 
