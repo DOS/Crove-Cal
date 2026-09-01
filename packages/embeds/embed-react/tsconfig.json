@@ -2,9 +2,11 @@
   "extends": "@calcom/tsconfig/base.json",
   "compilerOptions": {
     "module": "ESNext",
-    "target": "ES2015",
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "moduleResolution": "Node",
     "baseUrl": ".",
+    "rootDir": "..",
     "declaration": true,
     "jsx": "preserve",
     "outDir": "dist",
@@ -15,5 +17,5 @@
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "env.d.ts", "*.tsx", "*.ts"],
   // Exclude "test" because that has `api.test.ts` which imports @calcom/embed-react which needs it to be built using this tsconfig.json first. Excluding it here prevents type-check from validating test folder
-  "exclude": ["**/node_modules/**", "test"]
+  "exclude": ["**/node_modules/**", "test", "**/*.test.ts", "**/*.test.tsx"]
 }
