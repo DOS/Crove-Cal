@@ -43,6 +43,7 @@ function getTestExclude() {
   const baseExclude = [
     "**/node_modules/**",
     "**/dist/**",
+    "**/.next/**",
     "apps/api/v2/**/*.spec.ts",
     "__checks__/**/*.spec.ts",
   ];

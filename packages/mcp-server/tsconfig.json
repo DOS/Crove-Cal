@@ -7,5 +7,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*", "bin/**/*"],
-  "exclude": ["dist", "build", "**/node_modules/**"]
+  "exclude": ["dist", "build", "**/node_modules/**", "**/*.test.ts", "**/__tests__/**"]
 }

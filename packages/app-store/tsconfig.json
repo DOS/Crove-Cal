@@ -1,6 +1,15 @@
 {
   "extends": "@calcom/tsconfig/react-library.json",
-  "exclude": ["dist", "types", "build", "**/node_modules/**"],
+  "exclude": [
+    "dist",
+    "types",
+    "build",
+    "**/node_modules/**",
+    "**/*.test.*",
+    "**/__mocks__/*",
+    "**/__tests__/*",
+    "tests"
+  ],
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

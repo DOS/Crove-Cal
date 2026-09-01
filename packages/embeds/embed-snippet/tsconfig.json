@@ -2,8 +2,10 @@
   "extends": "@calcom/tsconfig/base.json",
   "compilerOptions": {
     "jsx": "react",
-    "target": "ES2015",
+    "target": "ES2022",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "baseUrl": ".",
+    "rootDir": "src",
     "module": "ESNext",
     "declaration": true,
     "outDir": "dist",
@@ -12,6 +14,6 @@
       "@calcom/embed-react": ["../embed-react/src"]
     }
   },
-  "include": ["."],
+  "include": ["src", "env.d.ts"],
   "exclude": ["dist", "build", "**/node_modules/**"]
 }

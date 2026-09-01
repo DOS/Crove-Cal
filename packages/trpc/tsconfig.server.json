@@ -11,6 +11,7 @@
   ],
   "exclude": ["**/node_modules/**", "./react", "./server/**/*.test.ts", "./server/**/*.spec.ts"],
   "compilerOptions": {
+    "rootDir": "server",
     "isolatedModules": false,
     "noEmit": false,
     "declaration": true,
