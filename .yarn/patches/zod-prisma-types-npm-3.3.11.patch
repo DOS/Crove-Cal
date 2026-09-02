@@ -1,0 +1,17 @@
+diff --git a/dist/classes/directoryHelper.js b/dist/classes/directoryHelper.js
+index 4558509..bbca3b4 100644
+--- a/dist/classes/directoryHelper.js
++++ b/dist/classes/directoryHelper.js
+@@ -23,7 +23,11 @@ class DirectoryHelper {
+         if (!this.pathOrDirExists(path))
+             return;
+         try {
+-            fs_1.default.rmdirSync(path, { recursive: true });
++            if (typeof fs_1.default.rmSync === 'function') {
++                fs_1.default.rmSync(path, { recursive: true, force: true });
++            } else {
++                fs_1.default.rmdirSync(path, { recursive: true });
++            }
+         }
+         catch (err) {
+             if (err instanceof Error)
