@@ -95,7 +95,7 @@ export async function getAvailableSlotsHandler(prisma: PrismaClient, input: GetA
       // Check if slot overlaps with any booked intervals
       const isOverlap = bookedIntervals.some((b) => slotStart < b.end && slotEnd > b.start);
 
-      if (!isOverlap && slotStart > Date.now()) {
+      if (!isOverlap) {
         slots.push({
           time: new Date(slotStart).toISOString(),
         });

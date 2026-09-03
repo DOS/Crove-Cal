@@ -362,7 +362,9 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
       name?: string;
       picture?: string;
       avatar_url?: string;
-      organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
+      active_org_id?: string | number;
+      organizations?: Array<{ id?: string | number; name?: string; role?: string; slug?: string }>;
+      teams?: Array<{ id?: string | number; org_id?: string | number; name?: string; role?: string; slug?: string }>;
     }) {
       return {
         id: profile.sub,
@@ -370,7 +372,9 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
         email: profile.email,
         emailVerified: profile.email_verified ?? true,
         image: profile.picture || profile.avatar_url || null,
+        activeOrgId: profile.active_org_id,
         organizations: profile.organizations,
+        teams: profile.teams,
       } as unknown as User;
     },
     options: {
@@ -1011,12 +1015,17 @@ export const getOptions = ({
               }
             }
             if (account.provider === "dos-id" || account.provider === "oidc") {
-              const orgs = (
-                user as unknown as {
-                  organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
-                }
-              )?.organizations;
-              await syncDosOrganizations(existingUser.id, orgs);
+              const userClaims = user as unknown as {
+                organizations?: Array<{ id?: string | number; name?: string; role?: string; slug?: string }>;
+                teams?: Array<{ id?: string | number; org_id?: string | number; name?: string; role?: string; slug?: string }>;
+                activeOrgId?: string | number;
+              };
+              await syncDosOrganizations(
+                existingUser.id,
+                userClaims?.organizations,
+                userClaims?.teams,
+                userClaims?.activeOrgId
+              );
             }
 
             if (existingUser.twoFactorEnabled && existingUser.identityProvider === idP) {
@@ -1069,17 +1078,17 @@ export const getOptions = ({
           // if self-hosted then we can allow auto-merge of identity providers if email is verified
           if (isVerified && existingUserWithEmail.identityProvider !== IdentityProvider.CAL) {
             if (account.provider === "dos-id" || account.provider === "oidc") {
-              const orgs = (
-                user as unknown as {
-                  organizations?: Array<{
-                    id?: string | number;
-                    name?: string;
-                    role?: string;
-                    slug?: string;
-                  }>;
-                }
-              )?.organizations;
-              await syncDosOrganizations(existingUserWithEmail.id, orgs);
+              const userClaims = user as unknown as {
+                organizations?: Array<{ id?: string | number; name?: string; role?: string; slug?: string }>;
+                teams?: Array<{ id?: string | number; org_id?: string | number; name?: string; role?: string; slug?: string }>;
+                activeOrgId?: string | number;
+              };
+              await syncDosOrganizations(
+                existingUserWithEmail.id,
+                userClaims?.organizations,
+                userClaims?.teams,
+                userClaims?.activeOrgId
+              );
             }
 
             if (existingUserWithEmail.twoFactorEnabled) {
@@ -1141,12 +1150,17 @@ export const getOptions = ({
             });
 
             if (account.provider === "dos-id" || account.provider === "oidc") {
-              const orgs = (
-                user as unknown as {
-                  organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
-                }
-              )?.organizations;
-              await syncDosOrganizations(existingUserWithEmail.id, orgs);
+              const userClaims = user as unknown as {
+                organizations?: Array<{ id?: string | number; name?: string; role?: string; slug?: string }>;
+                teams?: Array<{ id?: string | number; org_id?: string | number; name?: string; role?: string; slug?: string }>;
+                activeOrgId?: string | number;
+              };
+              await syncDosOrganizations(
+                existingUserWithEmail.id,
+                userClaims?.organizations,
+                userClaims?.teams,
+                userClaims?.activeOrgId
+              );
             }
 
             if (existingUserWithEmail.twoFactorEnabled) {
@@ -1244,12 +1258,17 @@ export const getOptions = ({
           }
 
           if (account.provider === "dos-id" || account.provider === "oidc") {
-            const orgs = (
-              user as unknown as {
-                organizations?: Array<{ id?: string | number; name?: string; role?: string }>;
-              }
-            )?.organizations;
-            await syncDosOrganizations(newUser.id, orgs);
+            const userClaims = user as unknown as {
+              organizations?: Array<{ id?: string | number; name?: string; role?: string; slug?: string }>;
+              teams?: Array<{ id?: string | number; org_id?: string | number; name?: string; role?: string; slug?: string }>;
+              activeOrgId?: string | number;
+            };
+            await syncDosOrganizations(
+              newUser.id,
+              userClaims?.organizations,
+              userClaims?.teams,
+              userClaims?.activeOrgId
+            );
           }
 
           if (newUser.twoFactorEnabled) {

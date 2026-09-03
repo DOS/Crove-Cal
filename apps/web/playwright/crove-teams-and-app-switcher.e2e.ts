@@ -74,6 +74,15 @@ test.describe("[Crove OS E2E]: App Switcher, Multi-Tenant Teams & Navigation", (
       await page.waitForURL(/\/auth\/login/);
       expect(page.url()).toContain("/auth/login");
     });
+
+    test("unauthenticated access to /settings/developer/webhooks/monitoring should redirect to login", async ({
+      page,
+    }) => {
+      await page.goto("/settings/developer/webhooks/monitoring");
+
+      await page.waitForURL(/\/auth\/login/);
+      expect(page.url()).toContain("/auth/login");
+    });
   });
 
   test.describe("3. Multi-Tenant API Route Tests", () => {

@@ -1,4 +1,5 @@
 import { BrevoService } from "@calcom/features/brevo";
+import { webhookMonitor } from "@calcom/lib/webhookMonitor";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -16,18 +17,37 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+  let triggerEventName = "unknown";
   try {
     const rawBody = await req.text();
     if (!rawBody) {
+      webhookMonitor.recordDelivery({
+        source: "brevo",
+        event: "error.empty_body",
+        status: 400,
+        latencyMs: Date.now() - startTime,
+        success: false,
+        error: "Empty request body",
+      });
       return NextResponse.json({ error: "Empty request body" }, { status: 400, headers: corsHeaders });
     }
 
     const payload = JSON.parse(rawBody);
-    const triggerEvent = payload.triggerEvent || payload.event;
+    const triggerEvent = payload.triggerEvent || payload.event || "UNKNOWN";
+    triggerEventName = triggerEvent;
     const eventData = payload.payload || payload.data || payload;
 
     const brevo = new BrevoService();
     if (!brevo.isConfigured()) {
+      webhookMonitor.recordDelivery({
+        source: "brevo",
+        event: triggerEventName,
+        status: 500,
+        latencyMs: Date.now() - startTime,
+        success: false,
+        error: "Brevo API key is not configured",
+      });
       return NextResponse.json(
         { error: "Brevo API key is not configured in CROVE_BREVO_API_KEY" },
         { status: 500, headers: corsHeaders }
@@ -79,6 +99,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    webhookMonitor.recordDelivery({
+      source: "brevo",
+      event: triggerEventName,
+      status: 200,
+      latencyMs: Date.now() - startTime,
+      success: true,
+      summary: `Synced ${syncResults.length} attendee(s) for event: ${triggerEventName}`,
+    });
+
     return NextResponse.json(
       {
         success: true,
@@ -90,6 +119,14 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal Server Error";
+    webhookMonitor.recordDelivery({
+      source: "brevo",
+      event: triggerEventName,
+      status: 500,
+      latencyMs: Date.now() - startTime,
+      success: false,
+      error: message,
+    });
     return NextResponse.json({ error: message }, { status: 500, headers: corsHeaders });
   }
 }
