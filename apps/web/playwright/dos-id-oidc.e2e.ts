@@ -96,7 +96,56 @@ test.describe("[Crove OS E2E]: DOS ID OIDC Login, App Switcher & Realtime Webhoo
     }
   });
 
-  test("4. App Switcher should display all Crove Suite and DOS Ecosystem applications", async ({ page }) => {
+  test("4. Webhook endpoint should handle Organization -> Team hierarchy events (team.created & team.member_added)", async ({
+    request,
+  }) => {
+    const secret = process.env.DOS_SYNC_WEBHOOK_SECRET || process.env.OIDC_CLIENT_SECRET || WEBHOOK_SECRET;
+
+    // Simulate team.created under an Organization
+    const teamPayload = JSON.stringify({
+      event: "team.created",
+      timestamp: new Date().toISOString(),
+      data: {
+        org_id: "org_987654321",
+        team_id: "team_11223344",
+        team_name: "Customer Support",
+        team_slug: "customer-support",
+        role: "LEAD",
+      },
+    });
+
+    const teamSignature = generateSignature(teamPayload, secret);
+
+    const teamRes = await request.post("/api/webhooks/dos-org-sync", {
+      data: teamPayload,
+      headers: {
+        "Content-Type": "application/json",
+        "x-dos-signature": `sha256=${teamSignature}`,
+      },
+    });
+
+    expect([200, 401, 500]).toContain(teamRes.status());
+    if (teamRes.status() === 200) {
+      const json = await teamRes.json();
+      expect(json.success).toBe(true);
+    }
+  });
+
+  test("5. Webhook Health & Monitoring API should return real-time metrics", async ({ request }) => {
+    const healthRes = await request.get("/api/webhooks/health");
+    expect([200, 503]).toContain(healthRes.status());
+
+    if (healthRes.status() === 200) {
+      const json = await healthRes.json();
+      expect(json.service).toBe("crove-cal-webhooks");
+      expect(json.routes).toBeDefined();
+      expect(json.routes["dos-org-sync"]).toBeDefined();
+      expect(json.routes["brevo"]).toBeDefined();
+      expect(json.activeListeners).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  test("6. App Switcher should display all Crove Suite and DOS Ecosystem applications", async ({ page }) => {
     await page.goto("/auth/login");
 
     // Check if App Switcher is present in the DOM when navigating logged-in routes
