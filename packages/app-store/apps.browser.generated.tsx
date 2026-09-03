@@ -23,6 +23,7 @@ export const EventTypeAddonMap = {
   basecamp3: dynamic(() => import("./basecamp3/components/EventTypeAppCardInterface")),
   btcpayserver: dynamic(() => import("./btcpayserver/components/EventTypeAppCardInterface")),
   closecom: dynamic(() => import("./closecom/components/EventTypeAppCardInterface")),
+  crovecrm: dynamic(() => import("./crovecrm/components/EventTypeAppCardInterface")),
   databuddy: dynamic(() => import("./databuddy/components/EventTypeAppCardInterface")),
   fathom: dynamic(() => import("./fathom/components/EventTypeAppCardInterface")),
   ga4: dynamic(() => import("./ga4/components/EventTypeAppCardInterface")),

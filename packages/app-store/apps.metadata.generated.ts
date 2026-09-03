@@ -19,6 +19,7 @@ import clara_config_json from "./clara/config.json";
 import clic_config_json from "./clic/config.json";
 import closecom_config_json from "./closecom/config.json";
 import cron_config_json from "./cron/config.json";
+import crovecrm_config_json from "./crovecrm/config.json";
 import { metadata as dailyvideo__metadata_ts } from "./dailyvideo/_metadata";
 import databuddy_config_json from "./databuddy/config.json";
 import deel_config_json from "./deel/config.json";
@@ -132,6 +133,7 @@ export const appStoreMetadata = {
   clic: clic_config_json,
   closecom: closecom_config_json,
   cron: cron_config_json,
+  crovecrm: crovecrm_config_json,
   dailyvideo: dailyvideo__metadata_ts,
   databuddy: databuddy_config_json,
   deel: deel_config_json,
