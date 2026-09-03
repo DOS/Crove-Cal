@@ -20,7 +20,9 @@ import {
   AppHeaderContent,
   AppHeaderDescription,
 } from "@coss/ui/shared/app-header";
-import { WebhookIcon } from "lucide-react";
+import { Button } from "@calcom/ui/components/button";
+import { ActivityIcon, WebhookIcon } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CreateNewWebhookButton, WebhookListItem } from "../components";
 
@@ -50,11 +52,14 @@ const WebhooksList = ({ webhooksByViewer }: { webhooksByViewer: WebhooksByViewer
         <AppHeaderContent title={t("webhooks")}>
           <AppHeaderDescription>{t("add_webhook_description", { appName: APP_NAME })}</AppHeaderDescription>
         </AppHeaderContent>
-        {webhookGroups.length > 0 && (
-          <AppHeaderActions>
-            <CreateNewWebhookButton />
-          </AppHeaderActions>
-        )}
+        <AppHeaderActions>
+          <Link href="/settings/developer/webhooks/monitoring">
+            <Button type="button" color="secondary" StartIcon="activity">
+              Monitoring &amp; Health
+            </Button>
+          </Link>
+          {webhookGroups.length > 0 && <CreateNewWebhookButton />}
+        </AppHeaderActions>
       </AppHeader>
 
       <div className="flex flex-col gap-6">

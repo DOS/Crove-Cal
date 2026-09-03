@@ -300,4 +300,74 @@ describe("/api/webhooks/dos-org-sync", () => {
       where: { id: 100 },
     });
   });
+
+  test("POST team.created should create child team with parent organization", async () => {
+    const { POST } = await import("../route");
+    mockPrisma.team.findFirst.mockResolvedValueOnce({ id: 100, isOrganization: true }) // parent org
+      .mockResolvedValueOnce(null) // child team not found
+      .mockResolvedValueOnce(null); // slug check
+    mockPrisma.team.create.mockResolvedValue({ id: 200, name: "Customer Support", parentId: 100 });
+
+    const body = JSON.stringify({
+      event: "team.created",
+      timestamp: new Date().toISOString(),
+      data: {
+        org_id: "org-1",
+        team_id: "team-101",
+        team_name: "Customer Support",
+        team_slug: "customer-support",
+      },
+    });
+    const sig = generateSignature(body, SECRET);
+    const req = createMockRequest(body, { "x-dos-signature": sig });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mockPrisma.team.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: "Customer Support",
+          isOrganization: false,
+          parentId: 100,
+          metadata: { dosTeamId: "team-101", dosOrgId: "org-1" },
+        }),
+      })
+    );
+  });
+
+  test("POST team.member_added should add member to child team", async () => {
+    const { POST } = await import("../route");
+    mockPrisma.team.findFirst.mockResolvedValueOnce({ id: 200, isOrganization: false }); // child team
+    mockPrisma.user.findFirst.mockResolvedValueOnce({ id: 50, email: "agent@acme.com" });
+    mockPrisma.membership.upsert.mockResolvedValue({});
+
+    const body = JSON.stringify({
+      event: "team.member_added",
+      timestamp: new Date().toISOString(),
+      data: {
+        org_id: "org-1",
+        team_id: "team-101",
+        user_email: "agent@acme.com",
+        role: "LEAD",
+      },
+    });
+    const sig = generateSignature(body, SECRET);
+    const req = createMockRequest(body, { "x-dos-signature": sig });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    expect(mockPrisma.membership.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_teamId: {
+            userId: 50,
+            teamId: 200,
+          },
+        },
+        create: expect.objectContaining({
+          role: "ADMIN",
+        }),
+      })
+    );
+  });
 });
