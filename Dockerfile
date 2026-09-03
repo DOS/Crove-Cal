@@ -44,7 +44,8 @@ ENV NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
   ORGANIZATIONS_ENABLED=$ORGANIZATIONS_ENABLED \
   NODE_OPTIONS=--max-old-space-size=${MAX_OLD_SPACE_SIZE} \
   BUILD_STANDALONE=true \
-  CSP_POLICY=$CSP_POLICY
+  CSP_POLICY=$CSP_POLICY \
+  HUSKY=0
 
 COPY package.json yarn.lock .yarnrc.yml playwright.config.ts turbo.json i18n.json ./
 COPY .yarn ./.yarn
