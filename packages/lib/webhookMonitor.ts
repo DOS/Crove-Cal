@@ -43,6 +43,7 @@ class WebhookMonitorService {
 
   private routeConfig: Record<string, { name: string }> = {
     "dos-org-sync": { name: "DOS.Me Org & Identity Sync" },
+    "crove-crm": { name: "Crove CRM Direct Sync" },
     brevo: { name: "Brevo CRM Event Bridge" },
     "calendar-subscription": { name: "Google & Microsoft Calendar Sync" },
     stripe: { name: "Stripe Payment & Subscriptions" },
