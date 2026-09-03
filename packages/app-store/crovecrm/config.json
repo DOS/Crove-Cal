@@ -1,0 +1,16 @@
+{
+  "name": "Crove CRM",
+  "slug": "crovecrm",
+  "type": "crovecrm_crm",
+  "logo": "icon.svg",
+  "url": "https://crm.crove.com",
+  "variant": "crm",
+  "categories": ["crm"],
+  "extendsFeature": "EventType",
+  "publisher": "MetaDOS LLC",
+  "email": "help@crove.com",
+  "description": "Automatically synchronize booked appointments, attendee contacts, and meeting timelines directly into Crove CRM with Organization and Team attribution.",
+  "isTemplate": false,
+  "__createdUsingCli": true,
+  "dirName": "crovecrm"
+}
