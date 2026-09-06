@@ -28,6 +28,7 @@ import { viewerTeamsRouter } from "./teams/_router";
 import { travelSchedulesRouter } from "./travelSchedules/_router";
 import { userAdminRouter } from "./users/_router";
 import { webhookRouter } from "./webhook/_router";
+import { viewerWorkflowsRouter } from "./workflows/_router";
 
 export const viewerRouter = router({
   loggedInViewerRouter,
@@ -45,6 +46,7 @@ export const viewerRouter = router({
   availability: availabilityRouter,
   timezones: timezonesRouter,
   webhook: webhookRouter,
+  workflows: viewerWorkflowsRouter,
   slots: slotsRouter,
   i18n: i18nRouter,
   features: featureFlagRouter,
