@@ -286,6 +286,7 @@ model EventType {
   rrHostSubsetEnabled           Boolean                        @default(false)
   requiresCancellationReason    CancellationReasonRequirement? @default(MANDATORY_HOST_ONLY)
   enablePerHostLocations        Boolean                        @default(false)
+  workflows                     WorkflowsOnEventTypes[]
 
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
@@ -465,6 +466,7 @@ model User {
   verifiedNumbers    VerifiedNumber[]
   verifiedEmails     VerifiedEmail[]
   hosts              Host[]
+  workflows          Workflow[]
   // organizationId is deprecated. Instead, rely on the Profile to search profiles by organizationId and then get user from the profile.
   organizationId     Int?
   organization       Team?              @relation("scope", fields: [organizationId], references: [id], onDelete: SetNull)
@@ -639,7 +641,8 @@ model Team {
   organizationBilling       OrganizationBilling?       @relation("OrganizationBilling")
   integrationAttributeSyncs IntegrationAttributeSync[]
 
-  autoOptInFeatures Boolean @default(false)
+  autoOptInFeatures Boolean    @default(false)
+  workflows         Workflow[]
 
   // Monthly proration tracking
   seatChangeLogs    SeatChangeLog[]
@@ -912,6 +915,7 @@ model Booking {
   expenseLogs            CreditExpenseLog[]
   report                 BookingReport?
   wrongAssignmentReports WrongAssignmentReport[]
+  workflowReminders      WorkflowReminder[]
 
   // @@partial_index([reassignById])
 
@@ -2848,4 +2852,106 @@ model AttributeSyncFieldMapping {
 
   @@unique([integrationAttributeSyncId, attributeId])
   @@index([integrationAttributeSyncId])
+}
+
+// -----------------------------------------------------------------------------
+// WORKFLOWS & AUTOMATIONS (Phase 2)
+// -----------------------------------------------------------------------------
+
+enum WorkflowTriggerEvents {
+  BEFORE_EVENT
+  AFTER_EVENT
+  NEW_EVENT
+  RESCHEDULE_EVENT
+  EVENT_CANCELLED
+}
+
+enum WorkflowActions {
+  EMAIL_HOST
+  EMAIL_ATTENDEE
+  EMAIL_ADDRESS
+  SMS_ATTENDEE
+  SMS_NUMBER
+  WHATSAPP_ATTENDEE
+  WHATSAPP_NUMBER
+}
+
+enum WorkflowTemplates {
+  REMINDER
+  CUSTOM
+}
+
+enum WorkflowMethods {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+model Workflow {
+  id               Int                     @id @default(autoincrement())
+  name             String
+  userId           Int?
+  user             User?                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId           Int?
+  team             Team?                   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  trigger          WorkflowTriggerEvents
+  time             Int?
+  timeUnit         TimeUnit?
+  steps            WorkflowStep[]
+  activeOn         WorkflowsOnEventTypes[]
+  isOrganiserEvent Boolean                 @default(false)
+  active           Boolean                 @default(true)
+  createdAt        DateTime                @default(now())
+
+  @@index([userId])
+  @@index([teamId])
+}
+
+model WorkflowStep {
+  id                        Int                @id @default(autoincrement())
+  stepNumber                Int
+  action                    WorkflowActions
+  workflowId                Int
+  workflow                  Workflow           @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  sendTo                    String?
+  reminderBody              String?
+  emailSubject              String?
+  template                  WorkflowTemplates  @default(REMINDER)
+  sender                    String?
+  numberRequired            Boolean?
+  numberVerificationPending Boolean            @default(false)
+  includeCalendarEvent      Boolean            @default(false)
+  reminders                 WorkflowReminder[]
+
+  @@index([workflowId])
+}
+
+model WorkflowsOnEventTypes {
+  id          Int       @id @default(autoincrement())
+  workflowId  Int
+  workflow    Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  eventTypeId Int
+  eventType   EventType @relation(fields: [eventTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, eventTypeId])
+  @@index([workflowId])
+  @@index([eventTypeId])
+}
+
+model WorkflowReminder {
+  id              Int             @id @default(autoincrement())
+  bookingUid      String?
+  booking         Booking?        @relation(fields: [bookingUid], references: [uid], onDelete: Cascade)
+  method          WorkflowMethods
+  scheduledDate   DateTime
+  referenceId     String?         @unique
+  scheduled       Boolean         @default(false)
+  cancelled       Boolean?        @default(false)
+  workflowStepId  Int?
+  workflowStep    WorkflowStep?   @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  seatReferenceId String?
+
+  @@index([bookingUid])
+  @@index([workflowStepId])
+  @@index([scheduledDate, scheduled])
 }

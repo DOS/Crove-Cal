@@ -35,6 +35,11 @@ const getNavigationItems = (): NavigationItemType[] => [
     icon: "users",
   },
   {
+    name: "workflows",
+    href: "/workflows",
+    icon: "zap",
+  },
+  {
     name: "apps",
     href: "/apps",
     icon: "grid-3x3",

@@ -79,6 +79,13 @@ export default defineConfig({
       { find: "@calcom/web", replacement: path.resolve(__dirname, "apps/web") },
       // Platform packages that need to be resolved from source in CI
       {
+        find: "@calcom/prisma/enums",
+        replacement: path.resolve(
+          __dirname,
+          "packages/prisma/enums/index.ts"
+        ),
+      },
+      {
         find: "@calcom/platform-constants",
         replacement: path.resolve(
           __dirname,
