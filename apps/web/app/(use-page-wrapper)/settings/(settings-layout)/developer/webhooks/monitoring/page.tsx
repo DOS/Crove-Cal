@@ -20,7 +20,7 @@ export const generateMetadata = async () =>
 const WebhookMonitoringPage = async () => {
   const session = await getServerSession({ req: buildLegacyRequest(await headers(), await cookies()) });
   if (!session?.user?.id) {
-    redirect("/auth/login");
+    return redirect("/auth/login");
   }
 
   return <WebhookMonitoringDashboard />;
