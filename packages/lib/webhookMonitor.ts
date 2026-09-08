@@ -53,7 +53,9 @@ class WebhookMonitorService {
   /**
    * Record a webhook processing event
    */
-  public recordDelivery(entry: Omit<WebhookDeliveryLog, "id" | "timestamp"> & { id?: string; timestamp?: string }): WebhookDeliveryLog {
+  public recordDelivery(
+    entry: Omit<WebhookDeliveryLog, "id" | "timestamp"> & { id?: string; timestamp?: string }
+  ): WebhookDeliveryLog {
     const logItem: WebhookDeliveryLog = {
       id: entry.id || `wh_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       source: entry.source,
@@ -160,11 +162,10 @@ const globalForWebhookMonitor = globalThis as unknown as {
   __croveWebhookMonitor?: WebhookMonitorService;
 };
 
-export const webhookMonitor =
-  globalForWebhookMonitor.__croveWebhookMonitor || new WebhookMonitorService();
+export const webhookMonitor = globalForWebhookMonitor.__croveWebhookMonitor || new WebhookMonitorService();
 
-if (process.env.NODE_ENV !== "production") {
-  globalForWebhookMonitor.__croveWebhookMonitor = webhookMonitor;
-}
+// Assignment must be unconditional: in production each route module otherwise gets its own
+// instance, so the dashboard under-reports deliveries (MD-25).
+globalForWebhookMonitor.__croveWebhookMonitor = webhookMonitor;
 
 export default webhookMonitor;
