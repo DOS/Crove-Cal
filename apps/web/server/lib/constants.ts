@@ -4,5 +4,5 @@ export const { client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET 
 export const GOOGLE_LOGIN_ENABLED = process.env.GOOGLE_LOGIN_ENABLED === "true";
 export const IS_GOOGLE_LOGIN_ENABLED = !!(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_LOGIN_ENABLED);
 export const isDosIdLoginEnabled = () =>
-  !!(process.env.OIDC_CLIENT_ID && process.env.OIDC_CLIENT_SECRET) ||
+  !!(process.env.OIDC_CLIENT_ID && (process.env.OIDC_CLIENT_SECRET || process.env.CROVE_OAUTH_CLIENT_SECRET)) ||
   process.env.NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED === "true";

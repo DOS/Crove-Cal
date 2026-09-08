@@ -314,16 +314,12 @@ type SamlIdpUser = {
 };
 
 export function DosIdProvider(options?: { clientId?: string; clientSecret?: string }): Provider {
-  const oidcClientId = (
-    options?.clientId ||
-    process.env.OIDC_CLIENT_ID ||
-    "18790ccb-4d71-48cd-ad24-aee5f3ced3da"
-  ).trim();
+  const oidcClientId = (options?.clientId || process.env.OIDC_CLIENT_ID || "").trim();
   const oidcClientSecret = (
     options?.clientSecret ||
     process.env.OIDC_CLIENT_SECRET ||
     process.env.CROVE_OAUTH_CLIENT_SECRET ||
-    "tQbSNFzbP03onxFrgScOfxYfzbvkjSou-gaPVtHh6fg"
+    ""
   ).trim();
   const wellKnown =
     process.env.OIDC_WELL_KNOWN_URL ||
@@ -346,6 +342,9 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
     idToken: true,
     checks: ["pkce", "state"],
     idTokenSignedResponseAlg: "ES256",
+    // Trust decision: Supabase/DOS.Me only issues tokens for emails confirmed at the IdP, so linking
+    // accounts by email match is accepted here. Removing this flag would break SSO for existing
+    // users whose Cal.diy email matches their IdP email.
     allowDangerousEmailAccountLinking: true,
     clientId: oidcClientId,
     clientSecret: oidcClientSecret,
@@ -370,7 +369,7 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
         id: profile.sub,
         name: profile.name || profile.email?.split("@")[0] || "User",
         email: profile.email,
-        emailVerified: profile.email_verified ?? true,
+        emailVerified: profile.email_verified ? new Date() : null,
         image: profile.picture || profile.avatar_url || null,
         activeOrgId: profile.active_org_id,
         organizations: profile.organizations,
@@ -385,7 +384,19 @@ export function DosIdProvider(options?: { clientId?: string; clientSecret?: stri
 }
 
 export const getProviders = (): Provider[] => {
-  const currentProviders: Provider[] = [CalComCredentialsProvider, DosIdProvider()];
+  const currentProviders: Provider[] = [CalComCredentialsProvider];
+
+  const oidcId = (process.env.OIDC_CLIENT_ID || "").trim();
+  const oidcSecret = (
+    process.env.OIDC_CLIENT_SECRET ||
+    process.env.CROVE_OAUTH_CLIENT_SECRET ||
+    ""
+  ).trim();
+  // Only register dos-id when the deployment actually configured its credentials, so an
+  // unconfigured deployment gets no dos-id endpoints at all.
+  if (oidcId && oidcSecret) {
+    currentProviders.push(DosIdProvider({ clientId: oidcId, clientSecret: oidcSecret }));
+  }
 
   if (IS_GOOGLE_LOGIN_ENABLED) {
     currentProviders.push(
@@ -590,13 +601,50 @@ export const getOptions = ({
 
       // The data available in 'session' depends on what data was supplied in update method call of session
       if (trigger === "update") {
-        token.upId = session?.upId ?? token.upId ?? null;
-        token.profileId = session?.profileId ?? token.profileId ?? null;
-        token.locale = session?.locale ?? token.locale ?? "en";
-        token.name = session?.name ?? token.name;
-        token.username = session?.username ?? token.username;
-        token.email = session?.email ?? token.email;
-        return await autoMergeIdentities();
+        // `session` is client-supplied POST data, so identity must never be derived from it.
+        // Re-anchor the token to the DB record of the signed-in user (token.sub) before any
+        // merge, so autoMergeIdentities cannot be steered to another user's account.
+        const previousToken: JWT = { ...token };
+        try {
+          const userIdFromSub = token.sub && isNumber(token.sub) ? Number(token.sub) : null;
+          if (!userIdFromSub) {
+            return token;
+          }
+          const userFromSub = await prisma.user.findUnique({
+            where: { id: userIdFromSub },
+            select: { id: true, email: true },
+          });
+          if (!userFromSub) {
+            return token;
+          }
+          token.email = userFromSub.email;
+          token.locale = session?.locale ?? token.locale ?? "en";
+          token.name = session?.name ?? token.name;
+          token.username = session?.username ?? token.username;
+
+          const requestedUpId = session?.upId ?? null;
+          if (requestedUpId) {
+            const requestedProfile = await ProfileRepository.findByUpIdWithAuth(
+              requestedUpId,
+              userFromSub.id
+            );
+            if (requestedProfile) {
+              token.upId = requestedUpId;
+              token.profileId = requestedProfile.id ?? token.profileId ?? null;
+            } else {
+              log.warn(
+                "callbacks:jwt:update - ignoring profile switch to a profile not owned by the signed-in user",
+                safeStringify({ requestedUpId, userId: userFromSub.id })
+              );
+            }
+          }
+          return await autoMergeIdentities();
+        } catch (error) {
+          // A missing/inaccessible profile must not throw and kill the session; fall back
+          // to the previous token instead (non-fatal).
+          log.error("callbacks:jwt:update - profile merge failed, keeping previous session", error);
+          return previousToken;
+        }
       }
       if (!user) {
         return await autoMergeIdentities();
