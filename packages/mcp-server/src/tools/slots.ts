@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@calcom/prisma";
+import type { Prisma } from "@calcom/prisma/client";
 
 export interface GetAvailableSlotsInput {
   eventTypeId?: number;
@@ -18,7 +19,7 @@ export async function getAvailableSlotsHandler(prisma: PrismaClient, input: GetA
     throw new Error("Either eventTypeId or slug must be provided");
   }
 
-  const where: Parameters<typeof prisma.eventType.findFirst>[0]["where"] = {};
+  const where: Prisma.EventTypeWhereInput = {};
   if (input.eventTypeId) {
     where.id = input.eventTypeId;
   } else if (input.slug) {

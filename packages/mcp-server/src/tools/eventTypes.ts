@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@calcom/prisma";
+import type { Prisma } from "@calcom/prisma/client";
 
 export interface ListEventTypesInput {
   username?: string;
@@ -8,7 +9,7 @@ export interface ListEventTypesInput {
 }
 
 export async function listEventTypesHandler(prisma: PrismaClient, input: ListEventTypesInput) {
-  const where: Parameters<typeof prisma.eventType.findMany>[0]["where"] = {
+  const where: Prisma.EventTypeWhereInput = {
     hidden: false,
   };
 
@@ -73,7 +74,7 @@ export async function getEventTypeDetailsHandler(prisma: PrismaClient, input: Ge
     throw new Error("Either eventTypeId or slug must be provided");
   }
 
-  const where: Parameters<typeof prisma.eventType.findFirst>[0]["where"] = {};
+  const where: Prisma.EventTypeWhereInput = {};
 
   if (input.eventTypeId) {
     where.id = input.eventTypeId;
@@ -149,13 +150,9 @@ export async function createEventTypeHandler(prisma: PrismaClient, input: Create
   }
 
   if (!targetUserId) {
-    // Default to the first available user
-    const firstUser = await prisma.user.findFirst({ select: { id: true } });
-    if (firstUser) targetUserId = firstUser.id;
-  }
-
-  if (!targetUserId) {
-    throw new Error("User ID is required to create an event type");
+    throw new Error(
+      "User ID is required to create an event type: provide userId or a username that resolves to an existing user"
+    );
   }
 
   const newEventType = await prisma.eventType.create({

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@calcom/prisma";
+import type { Prisma } from "@calcom/prisma/client";
 
 export interface CreateBookingInput {
   eventTypeId: number;
@@ -93,7 +94,7 @@ export async function getBookingHandler(prisma: PrismaClient, input: GetBookingI
     throw new Error("Either bookingUid or bookingId must be provided");
   }
 
-  const where: Parameters<typeof prisma.booking.findFirst>[0]["where"] = {};
+  const where: Prisma.BookingWhereInput = {};
   if (input.bookingUid) {
     where.uid = input.bookingUid;
   } else if (input.bookingId) {
@@ -242,7 +243,7 @@ export interface ListBookingsInput {
 }
 
 export async function listBookingsHandler(prisma: PrismaClient, input: ListBookingsInput) {
-  const where: Parameters<typeof prisma.booking.findMany>[0]["where"] = {};
+  const where: Prisma.BookingWhereInput = {};
 
   if (input.status) {
     where.status = input.status;
