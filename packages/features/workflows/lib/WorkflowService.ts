@@ -1,6 +1,8 @@
+import { ErrorWithCode } from "@calcom/lib/errors";
 import type { PrismaClient } from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
 import {
+  MembershipRole,
   TimeUnit,
   WorkflowActions,
   WorkflowMethods,
@@ -42,10 +44,41 @@ export class WorkflowService {
     this.prisma = prisma;
   }
 
+  private async assertTeamMembership({
+    userId,
+    teamId,
+    requireAdminOwner = false,
+  }: {
+    userId: number;
+    teamId: number;
+    requireAdminOwner?: boolean;
+  }) {
+    const membership = await this.prisma.membership.findFirst({
+      where: { userId, teamId, accepted: true },
+      select: { id: true, role: true },
+    });
+
+    if (!membership) {
+      throw ErrorWithCode.Factory.Forbidden("You are not a member of this team");
+    }
+
+    if (
+      requireAdminOwner &&
+      membership.role !== MembershipRole.ADMIN &&
+      membership.role !== MembershipRole.OWNER
+    ) {
+      throw ErrorWithCode.Factory.Forbidden("Only team owners and admins can manage workflows");
+    }
+  }
+
   /**
    * Get all workflows accessible to a user (personal + team workflows)
    */
   async getWorkflows({ userId, teamId }: { userId: number; teamId?: number | null }) {
+    if (teamId) {
+      await this.assertTeamMembership({ userId, teamId });
+    }
+
     const where: Prisma.WorkflowWhereInput = teamId
       ? { teamId }
       : { userId, teamId: null };
@@ -72,6 +105,10 @@ export class WorkflowService {
    * Get a single workflow by ID with security validation
    */
   async getWorkflowById({ id, userId, teamId }: { id: number; userId: number; teamId?: number | null }) {
+    if (teamId) {
+      await this.assertTeamMembership({ userId, teamId });
+    }
+
     const where: Prisma.WorkflowWhereInput = teamId
       ? { id, teamId }
       : { id, userId };
@@ -93,7 +130,7 @@ export class WorkflowService {
     });
 
     if (!workflow) {
-      throw new Error(`Workflow with ID ${id} not found or access denied`);
+      throw ErrorWithCode.Factory.NotFound(`Workflow with ID ${id} not found or access denied`);
     }
 
     return workflow;
@@ -112,48 +149,67 @@ export class WorkflowService {
     input: CreateWorkflowInput;
   }) {
     if (!input.name || input.name.trim().length === 0) {
-      throw new Error("Workflow name is required");
+      throw ErrorWithCode.Factory.BadRequest("Workflow name is required");
     }
 
     if (!input.steps || input.steps.length === 0) {
-      throw new Error("At least one workflow action step is required");
+      throw ErrorWithCode.Factory.BadRequest("At least one workflow action step is required");
     }
 
-    return this.prisma.workflow.create({
-      data: {
-        name: input.name.trim(),
-        trigger: input.trigger,
-        time: input.time || null,
-        timeUnit: input.timeUnit || null,
-        isOrganiserEvent: input.isOrganiserEvent ?? false,
-        active: true,
-        user: teamId ? undefined : { connect: { id: userId } },
-        team: teamId ? { connect: { id: teamId } } : undefined,
-        steps: {
-          create: input.steps.map((step, idx) => ({
-            stepNumber: step.stepNumber || idx + 1,
-            action: step.action,
-            sendTo: step.sendTo || null,
-            reminderBody: step.reminderBody || null,
-            emailSubject: step.emailSubject || null,
-            template: step.template || WorkflowTemplates.REMINDER,
-            sender: step.sender || null,
-            numberRequired: step.numberRequired || null,
-            includeCalendarEvent: step.includeCalendarEvent ?? false,
-          })),
+    if (teamId) {
+      await this.assertTeamMembership({ userId, teamId, requireAdminOwner: true });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      if (input.activeOn && input.activeOn.length > 0) {
+        const owned = await tx.eventType.count({
+          where: {
+            id: { in: input.activeOn },
+            OR: teamId ? [{ userId }, { teamId }] : [{ userId, teamId: null }],
+          },
+        });
+
+        if (owned !== input.activeOn.length) {
+          throw ErrorWithCode.Factory.NotFound("Event type not found or not accessible");
+        }
+      }
+
+      return tx.workflow.create({
+        data: {
+          name: input.name.trim(),
+          trigger: input.trigger,
+          time: input.time || null,
+          timeUnit: input.timeUnit || null,
+          isOrganiserEvent: input.isOrganiserEvent ?? false,
+          active: true,
+          user: teamId ? undefined : { connect: { id: userId } },
+          team: teamId ? { connect: { id: teamId } } : undefined,
+          steps: {
+            create: input.steps.map((step, idx) => ({
+              stepNumber: step.stepNumber || idx + 1,
+              action: step.action,
+              sendTo: step.sendTo || null,
+              reminderBody: step.reminderBody || null,
+              emailSubject: step.emailSubject || null,
+              template: step.template || WorkflowTemplates.REMINDER,
+              sender: step.sender || null,
+              numberRequired: step.numberRequired || null,
+              includeCalendarEvent: step.includeCalendarEvent ?? false,
+            })),
+          },
+          activeOn: input.activeOn && input.activeOn.length > 0
+            ? {
+                create: input.activeOn.map((eventTypeId) => ({
+                  eventTypeId,
+                })),
+              }
+            : undefined,
         },
-        activeOn: input.activeOn && input.activeOn.length > 0
-          ? {
-              create: input.activeOn.map((eventTypeId) => ({
-                eventTypeId,
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        steps: true,
-        activeOn: true,
-      },
+        include: {
+          steps: true,
+          activeOn: true,
+        },
+      });
     });
   }
 
@@ -171,67 +227,86 @@ export class WorkflowService {
     teamId?: number | null;
     input: UpdateWorkflowInput;
   }) {
+    if (teamId) {
+      await this.assertTeamMembership({ userId, teamId, requireAdminOwner: true });
+    }
+
     // Validate existence & ownership
     await this.getWorkflowById({ id, userId, teamId });
 
-    // Handle steps replacement if provided
-    if (input.steps) {
-      await this.prisma.workflowStep.deleteMany({
-        where: { workflowId: id },
-      });
-    }
+    return this.prisma.$transaction(async (tx) => {
+      // Handle steps replacement if provided
+      if (input.steps) {
+        await tx.workflowStep.deleteMany({
+          where: { workflowId: id },
+        });
+      }
 
-    // Handle activeOn event types update if provided
-    if (input.activeOn) {
-      await this.prisma.workflowsOnEventTypes.deleteMany({
-        where: { workflowId: id },
-      });
-    }
+      // Handle activeOn event types update if provided
+      if (input.activeOn) {
+        await tx.workflowsOnEventTypes.deleteMany({
+          where: { workflowId: id },
+        });
 
-    return this.prisma.workflow.update({
-      where: { id },
-      data: {
-        ...(input.name ? { name: input.name.trim() } : {}),
-        ...(input.trigger !== undefined ? { trigger: input.trigger } : {}),
-        ...(input.time !== undefined ? { time: input.time } : {}),
-        ...(input.timeUnit !== undefined ? { timeUnit: input.timeUnit } : {}),
-        ...(input.active !== undefined ? { active: input.active } : {}),
-        ...(input.isOrganiserEvent !== undefined ? { isOrganiserEvent: input.isOrganiserEvent } : {}),
-        ...(input.steps
-          ? {
-              steps: {
-                create: input.steps.map((step, idx) => ({
-                  stepNumber: step.stepNumber || idx + 1,
-                  action: step.action,
-                  sendTo: step.sendTo || null,
-                  reminderBody: step.reminderBody || null,
-                  emailSubject: step.emailSubject || null,
-                  template: step.template || WorkflowTemplates.REMINDER,
-                  sender: step.sender || null,
-                  numberRequired: step.numberRequired || null,
-                  includeCalendarEvent: step.includeCalendarEvent ?? false,
-                })),
-              },
-            }
-          : {}),
-        ...(input.activeOn
-          ? {
-              activeOn: {
-                create: input.activeOn.map((eventTypeId) => ({
-                  eventTypeId,
-                })),
-              },
-            }
-          : {}),
-      },
-      include: {
-        steps: { orderBy: { stepNumber: "asc" } },
-        activeOn: {
-          include: {
-            eventType: { select: { id: true, title: true, slug: true } },
+        if (input.activeOn.length > 0) {
+          const owned = await tx.eventType.count({
+            where: {
+              id: { in: input.activeOn },
+              OR: teamId ? [{ userId }, { teamId }] : [{ userId, teamId: null }],
+            },
+          });
+
+          if (owned !== input.activeOn.length) {
+            throw ErrorWithCode.Factory.NotFound("Event type not found or not accessible");
+          }
+        }
+      }
+
+      return tx.workflow.update({
+        where: { id, ...(teamId ? { teamId } : { userId }) },
+        data: {
+          ...(input.name ? { name: input.name.trim() } : {}),
+          ...(input.trigger !== undefined ? { trigger: input.trigger } : {}),
+          ...(input.time !== undefined ? { time: input.time } : {}),
+          ...(input.timeUnit !== undefined ? { timeUnit: input.timeUnit } : {}),
+          ...(input.active !== undefined ? { active: input.active } : {}),
+          ...(input.isOrganiserEvent !== undefined ? { isOrganiserEvent: input.isOrganiserEvent } : {}),
+          ...(input.steps
+            ? {
+                steps: {
+                  create: input.steps.map((step, idx) => ({
+                    stepNumber: step.stepNumber || idx + 1,
+                    action: step.action,
+                    sendTo: step.sendTo || null,
+                    reminderBody: step.reminderBody || null,
+                    emailSubject: step.emailSubject || null,
+                    template: step.template || WorkflowTemplates.REMINDER,
+                    sender: step.sender || null,
+                    numberRequired: step.numberRequired || null,
+                    includeCalendarEvent: step.includeCalendarEvent ?? false,
+                  })),
+                },
+              }
+            : {}),
+          ...(input.activeOn
+            ? {
+                activeOn: {
+                  create: input.activeOn.map((eventTypeId) => ({
+                    eventTypeId,
+                  })),
+                },
+              }
+            : {}),
+        },
+        include: {
+          steps: { orderBy: { stepNumber: "asc" } },
+          activeOn: {
+            include: {
+              eventType: { select: { id: true, title: true, slug: true } },
+            },
           },
         },
-      },
+      });
     });
   }
 
@@ -239,9 +314,14 @@ export class WorkflowService {
    * Delete a workflow
    */
   async deleteWorkflow({ id, userId, teamId }: { id: number; userId: number; teamId?: number | null }) {
+    if (teamId) {
+      await this.assertTeamMembership({ userId, teamId, requireAdminOwner: true });
+    }
+
     await this.getWorkflowById({ id, userId, teamId });
+
     return this.prisma.workflow.delete({
-      where: { id },
+      where: { id, ...(teamId ? { teamId } : { userId }) },
     });
   }
 
@@ -249,6 +329,10 @@ export class WorkflowService {
    * Duplicate a workflow
    */
   async duplicateWorkflow({ id, userId, teamId }: { id: number; userId: number; teamId?: number | null }) {
+    if (teamId) {
+      await this.assertTeamMembership({ userId, teamId, requireAdminOwner: true });
+    }
+
     const original = await this.getWorkflowById({ id, userId, teamId });
 
     return this.createWorkflow({
