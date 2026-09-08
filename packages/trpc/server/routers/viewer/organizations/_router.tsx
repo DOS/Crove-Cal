@@ -1,4 +1,5 @@
 import { OrganizationService } from "@calcom/features/organizations/OrganizationService";
+import type { Prisma } from "@calcom/prisma";
 import { z } from "zod";
 import authedProcedure from "../../../procedures/authedProcedure";
 import { router } from "../../../trpc";
@@ -49,7 +50,8 @@ export const viewerOrganizationsRouter = router({
       slug: input.slug,
       bio: input.bio,
       logoUrl: input.logoUrl,
-      metadata: input.metadata as any,
+      // z.record(z.unknown()) values are opaque to TS; Prisma only accepts JSON-serializable values here
+      metadata: input.metadata as unknown as Prisma.InputJsonValue,
       lockEventTypeCreationForUsers: input.lockEventTypeCreationForUsers,
     });
   }),

@@ -1,4 +1,5 @@
 import { TeamService } from "@calcom/features/teams/TeamService";
+import type { Prisma } from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
 import { z } from "zod";
 import authedProcedure from "../../../procedures/authedProcedure";
@@ -101,7 +102,8 @@ export const viewerTeamsRouter = router({
       bio: input.bio,
       logoUrl: input.logoUrl,
       hideBookATeamMember: input.hideBookATeamMember,
-      metadata: input.metadata as any,
+      // z.record(z.unknown()) values are opaque to TS; Prisma only accepts JSON-serializable values here
+      metadata: input.metadata as unknown as Prisma.InputJsonValue,
     });
   }),
 
