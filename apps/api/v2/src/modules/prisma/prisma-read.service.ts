@@ -1,3 +1,4 @@
+import { getSchemaFromUrl, resolveDatabaseSsl } from "@calcom/prisma";
 import { PrismaClient } from "@calcom/prisma/client";
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -5,17 +6,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 const DB_MAX_POOL_CONNECTION = 10;
-
-function getSchemaFromUrl(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-  try {
-    const parsed = new URL(url.replace(/^postgresql:\/\//, "http://").replace(/^postgres:\/\//, "http://"));
-    return parsed.searchParams.get("schema") || undefined;
-  } catch {
-    const match = url.match(/[?&]schema=([^&]+)/);
-    return match ? match[1] : undefined;
-  }
-}
 
 @Injectable()
 export class PrismaReadService implements OnModuleInit, OnModuleDestroy {
@@ -63,23 +53,19 @@ export class PrismaReadService implements OnModuleInit, OnModuleDestroy {
         connectionString: dbUrl,
         max: maxReadConnections,
         idleTimeoutMillis: 300000,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: resolveDatabaseSsl(),
       });
 
       const adapter = new PrismaPg(this.pool, adapterOptions);
       this.prisma = new PrismaClient({ adapter });
     } else {
-      const adapterPool = new Pool({
+      this.pool = new Pool({
         connectionString: dbUrl,
         max: 5,
         idleTimeoutMillis: 300000,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: resolveDatabaseSsl(),
       });
-      const adapter = new PrismaPg(adapterPool, adapterOptions);
+      const adapter = new PrismaPg(this.pool, adapterOptions);
       this.prisma = new PrismaClient({
         adapter,
       });

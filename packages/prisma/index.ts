@@ -7,7 +7,7 @@ import { excludeLockedUsersExtension } from "./extensions/exclude-locked-users";
 import { excludePendingPaymentsExtension } from "./extensions/exclude-pending-payment-teams";
 import { PrismaClient, type Prisma } from "./generated/prisma/client";
 
-function getSchemaFromUrl(url: string | undefined): string | undefined {
+export function getSchemaFromUrl(url: string | undefined): string | undefined {
   if (!url) return undefined;
   try {
     const parsed = new URL(url.replace(/^postgresql:\/\//, "http://").replace(/^postgres:\/\//, "http://"));
@@ -16,6 +16,15 @@ function getSchemaFromUrl(url: string | undefined): string | undefined {
     const match = url.match(/[?&]schema=([^&]+)/);
     return match ? match[1] : undefined;
   }
+}
+
+// TLS verification defaults to on; endpoints whose certificate Node cannot verify
+// (e.g. self-signed or Supabase pooler certs) must explicitly opt out via
+// DATABASE_SSL_REJECT_UNAUTHORIZED=false so an insecure default cannot ship silently.
+export function resolveDatabaseSsl(): { rejectUnauthorized: boolean } {
+  return {
+    rejectUnauthorized: process.env.DATABASE_SSL_REJECT_UNAUTHORIZED !== "false",
+  };
 }
 
 const connectionString = process.env.DATABASE_URL || "";
@@ -28,17 +37,13 @@ const pool =
         connectionString: connectionString,
         max: 5,
         idleTimeoutMillis: 300000,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: resolveDatabaseSsl(),
       })
     : new Pool({
         connectionString: connectionString,
         max: 10,
         idleTimeoutMillis: 300000,
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: resolveDatabaseSsl(),
       });
 
 const adapter = new PrismaPg(pool, adapterOptions);
@@ -81,9 +86,7 @@ export const customPrisma = (options?: Prisma.PrismaClientOptions) => {
       connectionString: customConnectionString,
       max: 5,
       idleTimeoutMillis: 300000,
-      ssl: {
-        rejectUnauthorized: false,
-      },
+      ssl: resolveDatabaseSsl(),
     });
     const customAdapter = new PrismaPg(customPool, customSchema ? { schema: customSchema } : undefined);
 
