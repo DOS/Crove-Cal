@@ -1,6 +1,11 @@
 import { defaultResponderForAppDir } from "app/api/defaultResponderForAppDir";
+import { cookies, headers } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
+
+import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
 import { webhookMonitor } from "@calcom/lib/webhookMonitor";
+
+import { buildLegacyRequest } from "@lib/buildLegacyCtx";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +20,14 @@ export async function OPTIONS() {
   });
 }
 
-async function getMonitoringHandler(req: NextRequest) {
+async function getMonitoringHandler() {
+  const session = await getServerSession({
+    req: buildLegacyRequest(await headers(), await cookies()),
+  });
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
   const metrics = webhookMonitor.getMetrics();
   const statusCode = metrics.status === "failing" ? 503 : 200;
 
@@ -36,6 +48,16 @@ async function getMonitoringHandler(req: NextRequest) {
 }
 
 async function postTriggerPingHandler(req: NextRequest) {
+  const session = await getServerSession({
+    req: buildLegacyRequest(await headers(), await cookies()),
+  });
+  if (!session?.user?.id) {
+    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+  if (session.user.role !== "ADMIN") {
+    return NextResponse.json({ message: "Forbidden" }, { status: 403 });
+  }
+
   const startTime = Date.now();
   try {
     const body = await req.json().catch(() => ({}));
