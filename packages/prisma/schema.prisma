@@ -650,6 +650,10 @@ model Team {
 
   @@unique([slug, parentId])
   @@index([parentId])
+  // Prunes the candidate set of the DOS tenant lookups, which filter on isOrganization
+  // plus a metadata jsonb path; expression indexes for those paths are hand-written in
+  // the SQL migration because Prisma cannot model them.
+  @@index([isOrganization])
 }
 
 model CreditBalance {
@@ -1329,6 +1333,8 @@ model WebhookScheduledTriggers {
   booking       Booking?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   // @@partial_index([bookingId])
+
+  @@index([startAfter])
 }
 
 model BookingSeat {

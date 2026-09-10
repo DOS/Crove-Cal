@@ -5,6 +5,11 @@ import type { PrismaClient } from "@calcom/prisma";
 import { DEFAULT_WEBHOOK_VERSION } from "./interface/IWebhookRepository";
 import { createWebhookSignature, jsonParse } from "./sendPayload";
 
+// The cron that drains this table is disabled on this fork (audit HI-10), so backlog
+// growth here is expected until crons are re-enabled; the take below only bounds each
+// drain's fan-out, and the remainder drains on subsequent ticks.
+const MAX_JOBS_PER_TICK = 100;
+
 export async function handleWebhookScheduledTriggers(prisma: PrismaClient) {
   await prisma.webhookScheduledTriggers.deleteMany({
     where: {
@@ -20,6 +25,7 @@ export async function handleWebhookScheduledTriggers(prisma: PrismaClient) {
         lte: dayjs().toDate(),
       },
     },
+    take: MAX_JOBS_PER_TICK,
     select: {
       id: true,
       jobName: true,
@@ -35,6 +41,7 @@ export async function handleWebhookScheduledTriggers(prisma: PrismaClient) {
   });
 
   const fetchPromises: Promise<Response | void>[] = [];
+  const dispatchedJobIds: number[] = [];
 
   // run jobs
   for (const job of jobsToRun) {
@@ -74,14 +81,21 @@ export async function handleWebhookScheduledTriggers(prisma: PrismaClient) {
         console.error(`Webhook trigger for subscriber url ${job.subscriberUrl} failed with error: ${error}`);
       })
     );
+    dispatchedJobIds.push(job.id);
+  }
 
-    // clean finished job
-    await prisma.webhookScheduledTriggers.delete({
+  // Deleting only after every dispatch has settled keeps rows alive if the process dies
+  // mid-flight; the old per-row delete ran before each fetch resolved, so any interrupted
+  // delivery was lost for good.
+  await Promise.allSettled(fetchPromises);
+
+  if (dispatchedJobIds.length > 0) {
+    await prisma.webhookScheduledTriggers.deleteMany({
       where: {
-        id: job.id,
+        id: {
+          in: dispatchedJobIds,
+        },
       },
     });
   }
-
-  Promise.allSettled(fetchPromises);
 }
