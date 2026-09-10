@@ -44,7 +44,10 @@ jobs:
             ${{ steps.image-name.outputs.image_name }}:latest
             ${{ steps.image-name.outputs.image_name }}:${{ github.sha }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Why: mode=max exports every build stage — including the builder stage
+          # whose ENV carries DATABASE_URL and NEXTAUTH_SECRET defaults — into the
+          # shared Actions cache. mode=min exports only the final image layers.
+          cache-to: type=gha,mode=min
           build-args: |
             NEXT_PUBLIC_WEBAPP_URL=https://cal.crove.com
             NEXT_PUBLIC_API_V2_URL=http://localhost:5555/api/v2
