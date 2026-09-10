@@ -7,6 +7,7 @@ import { appStoreMetadata } from "@calcom/app-store/appStoreMetaData";
 import { CREDENTIAL_SYNC_SECRET, CREDENTIAL_SYNC_SECRET_HEADER_NAME } from "@calcom/lib/constants";
 import { APP_CREDENTIAL_SHARING_ENABLED } from "@calcom/lib/constants";
 import { symmetricDecrypt } from "@calcom/lib/crypto";
+import { timingSafeStringsEqual } from "@calcom/lib/webhook-signature";
 import prisma from "@calcom/prisma";
 
 const appCredentialWebhookRequestBodySchema = z.object({
@@ -23,7 +24,15 @@ async function postHandler(request: NextRequest) {
   }
 
   const secretHeader = request.headers.get(CREDENTIAL_SYNC_SECRET_HEADER_NAME);
-  if (secretHeader !== CREDENTIAL_SYNC_SECRET) {
+  // Why: `!==` on the secret short-circuits at the first differing byte, leaking
+  // timing information that helps recover the credential sync secret; compare in
+  // constant time. CREDENTIAL_SYNC_SECRET is only set when
+  // APP_CREDENTIAL_SHARING_ENABLED (checked above), so the empty case stays a 403.
+  if (
+    !secretHeader ||
+    !CREDENTIAL_SYNC_SECRET ||
+    !timingSafeStringsEqual(secretHeader, CREDENTIAL_SYNC_SECRET)
+  ) {
     return NextResponse.json({ message: "Invalid credential sync secret" }, { status: 403 });
   }
 

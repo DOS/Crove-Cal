@@ -90,6 +90,17 @@ export function isBlockedHostname(hostname: string): boolean {
   return BLOCKED_HOSTNAMES.includes(normalized);
 }
 
+/**
+ * Self-hosted operators may set SSRF_ALLOW_PRIVATE_IPS="true" to allow URLs pointing
+ * at internal services (private/loopback IPs and hostnames that resolve to them).
+ * Only the private-IP and DNS-resolution checks are skipped; cloud metadata endpoints
+ * stay blocked unconditionally. Ignored on Cal.diy cloud, where private-IP protection
+ * is never disabled.
+ */
+function isPrivateTargetOptOut(): boolean {
+  return IS_SELF_HOSTED && process.env.SSRF_ALLOW_PRIVATE_IPS === "true";
+}
+
 // Check if hostname is a cloud metadata endpoint (blocked even on self-hosted)
 function isCloudMetadataEndpoint(hostname: string): boolean {
   const normalized = normalizeHostname(hostname);
@@ -139,13 +150,31 @@ function validateUrlCore(urlString: string): SSRFValidationResult | { url: URL }
     return { isValid: false, error: ERRORS.BLOCKED_HOSTNAME };
   }
 
-  // Self-hosted: allow HTTP and private IPs (for internal webhooks)
-  // Still restrict to HTTP/HTTPS protocols only (no file://, ftp://, etc.)
+  // Self-hosted: HTTP is allowed, but private-network targets are blocked exactly
+  // like on cloud unless SSRF_ALLOW_PRIVATE_IPS=true opts out. Why: previously this
+  // branch returned early after only a protocol check, so on self-hosted any
+  // authenticated user could reach internal services (127.0.0.1, 169.254.169.254,
+  // internal hostnames) through user-supplied URLs such as viewer.webhook.testTrigger.
+  // Metadata endpoints stay blocked unconditionally above (self-hosted boxes may
+  // still run on AWS/GCP/Azure).
   if (IS_SELF_HOSTED) {
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       return { isValid: false, error: ERRORS.INVALID_PROTOCOL };
     }
-    return { isValid: true };
+
+    if (!isPrivateTargetOptOut()) {
+      if (isBlockedHostname(url.hostname)) {
+        return { isValid: false, error: ERRORS.BLOCKED_HOSTNAME };
+      }
+
+      // Check if hostname is an IP address and if it's private
+      const hostnameForIPCheck = stripIPv6Brackets(url.hostname);
+      if (ipaddr.isValid(hostnameForIPCheck) && isPrivateIP(hostnameForIPCheck)) {
+        return { isValid: false, error: ERRORS.PRIVATE_IP };
+      }
+    }
+
+    return { url };
   }
 
   if (url.protocol !== "https:") {
@@ -176,16 +205,20 @@ export async function validateUrlForSSRF(urlString: string): Promise<SSRFValidat
     return result;
   }
 
-  // DNS rebinding protection: resolve IPs and check each one
-  try {
-    const addresses = await dns.lookup(result.url.hostname, { all: true });
-    for (const { address } of addresses) {
-      if (isPrivateIP(address)) {
-        return { isValid: false, error: ERRORS.PRIVATE_IP_DNS };
+  // DNS rebinding protection: resolve IPs and check each one.
+  // Skipped when SSRF_ALLOW_PRIVATE_IPS=true, since internal hostnames resolving to
+  // private IPs is exactly what the operator opted in to.
+  if (!isPrivateTargetOptOut()) {
+    try {
+      const addresses = await dns.lookup(result.url.hostname, { all: true });
+      for (const { address } of addresses) {
+        if (isPrivateIP(address)) {
+          return { isValid: false, error: ERRORS.PRIVATE_IP_DNS };
+        }
       }
+    } catch {
+      // Allow DNS failures to avoid breaking legitimate hosts with flaky DNS
     }
-  } catch {
-    // Allow DNS failures to avoid breaking legitimate hosts with flaky DNS
   }
 
   return { isValid: true };

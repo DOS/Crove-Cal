@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 const SHA256_HEX_64_PATTERN = /^[0-9a-fA-F]{64}$/;
 
@@ -28,4 +28,18 @@ export function verifyWebhookSignature(
 
   // timingSafeEqual throws when buffer lengths differ, so validate the hex length above before comparing
   return timingSafeEqual(Buffer.from(providedSignature, "hex"), Buffer.from(expectedSignature, "hex"));
+}
+
+/**
+ * Constant-time comparison of two arbitrary strings (secrets or HMAC digests).
+ * Both sides are hashed with SHA-256 first so the buffers always have equal length,
+ * which timingSafeEqual requires.
+ *
+ * Why: `===` short-circuits at the first differing byte, leaking timing information
+ * that helps an attacker forge signatures or secrets byte by byte.
+ */
+export function timingSafeStringsEqual(a: string, b: string): boolean {
+  const digestA = createHash("sha256").update(a, "utf8").digest();
+  const digestB = createHash("sha256").update(b, "utf8").digest();
+  return timingSafeEqual(digestA, digestB);
 }
