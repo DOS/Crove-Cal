@@ -1,6 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ErrorWithCode } from "@calcom/lib/errors";
-import { WorkflowService } from "../lib/WorkflowService";
 import {
   MembershipRole,
   TimeUnit,
@@ -8,6 +6,8 @@ import {
   WorkflowMethods,
   WorkflowTriggerEvents,
 } from "@calcom/prisma/enums";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { WorkflowService } from "../lib/WorkflowService";
 
 describe("WorkflowService", () => {
   const mockPrisma: any = {
@@ -33,6 +33,10 @@ describe("WorkflowService", () => {
     workflowReminder: {
       create: vi.fn(),
       findMany: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    booking: {
+      findUnique: vi.fn(),
     },
     $transaction: vi.fn(),
   };
@@ -43,15 +47,15 @@ describe("WorkflowService", () => {
     // registers findMany but never triggers the call would leak its value into later tests
     mockPrisma.workflow.findMany.mockReset();
     mockPrisma.workflow.findFirst.mockReset();
-    mockPrisma.$transaction.mockImplementation(
-      async (fn: (tx: unknown) => unknown) => fn(mockPrisma)
-    );
+    mockPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(mockPrisma));
     mockPrisma.membership.findFirst.mockResolvedValue({ id: 1, role: MembershipRole.OWNER });
     mockPrisma.eventType.count.mockImplementation(
       async ({ where }: { where: { id: { in: number[] } } }) => where.id.in.length
     );
     mockPrisma.workflow.create.mockReset();
     mockPrisma.workflow.create.mockResolvedValueOnce({ id: 1 });
+    mockPrisma.booking.findUnique.mockReset();
+    mockPrisma.workflowReminder.updateMany.mockReset();
   });
 
   describe("calculateScheduledDate", () => {
@@ -285,9 +289,9 @@ describe("WorkflowService", () => {
       mockPrisma.membership.findFirst.mockResolvedValueOnce(null);
       const service = new WorkflowService(mockPrisma);
 
-      await expect(
-        service.getWorkflowById({ id: 1, userId: 10, teamId: 5 })
-      ).rejects.toThrow(/not a member of this team/);
+      await expect(service.getWorkflowById({ id: 1, userId: 10, teamId: 5 })).rejects.toThrow(
+        /not a member of this team/
+      );
 
       expect(mockPrisma.workflow.findFirst).not.toHaveBeenCalled();
     });
@@ -296,9 +300,9 @@ describe("WorkflowService", () => {
       mockPrisma.workflow.findFirst.mockResolvedValueOnce(null);
       const service = new WorkflowService(mockPrisma);
 
-      await expect(
-        service.getWorkflowById({ id: 1, userId: 10, teamId: null })
-      ).rejects.toThrow(/not found or access denied/);
+      await expect(service.getWorkflowById({ id: 1, userId: 10, teamId: null })).rejects.toThrow(
+        /not found or access denied/
+      );
     });
   });
 
@@ -341,7 +345,10 @@ describe("WorkflowService", () => {
       expect(mockPrisma.workflow.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 1, userId: 10 },
-          data: expect.objectContaining({ name: "Renamed", activeOn: { create: [{ eventTypeId: 101 }, { eventTypeId: 102 }] } }),
+          data: expect.objectContaining({
+            name: "Renamed",
+            activeOn: { create: [{ eventTypeId: 101 }, { eventTypeId: 102 }] },
+          }),
         })
       );
     });
@@ -408,9 +415,9 @@ describe("WorkflowService", () => {
       mockPrisma.membership.findFirst.mockResolvedValueOnce({ id: 3, role: MembershipRole.MEMBER });
       const service = new WorkflowService(mockPrisma);
 
-      await expect(
-        service.deleteWorkflow({ id: 1, userId: 10, teamId: 5 })
-      ).rejects.toThrow(/Only team owners and admins/);
+      await expect(service.deleteWorkflow({ id: 1, userId: 10, teamId: 5 })).rejects.toThrow(
+        /Only team owners and admins/
+      );
 
       expect(mockPrisma.workflow.delete).not.toHaveBeenCalled();
     });
@@ -419,6 +426,12 @@ describe("WorkflowService", () => {
   describe("scheduleRemindersForBooking", () => {
     it("should find active workflows and create reminder records", async () => {
       const service = new WorkflowService(mockPrisma);
+      mockPrisma.booking.findUnique.mockResolvedValue({
+        uid: "bk_123456",
+        startTime: new Date("2026-09-10T15:00:00.000Z"),
+        endTime: new Date("2026-09-10T15:30:00.000Z"),
+        status: "ACCEPTED",
+      });
       // mockResolvedValue (not Once) so a stale once-queue leaked from an earlier test cannot shadow this value
       mockPrisma.workflow.findMany.mockResolvedValue([
         {
@@ -432,7 +445,9 @@ describe("WorkflowService", () => {
           ],
         },
       ]);
-      mockPrisma.workflowReminder.create.mockImplementation(({ data }) => Promise.resolve({ id: Math.random(), ...data }));
+      mockPrisma.workflowReminder.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: Math.random(), ...data })
+      );
 
       const reminders = await service.scheduleRemindersForBooking({
         bookingUid: "bk_123456",
@@ -445,6 +460,87 @@ describe("WorkflowService", () => {
       expect(reminders[0].method).toBe(WorkflowMethods.EMAIL);
       expect(reminders[0].scheduledDate.toISOString()).toBe("2026-09-10T14:00:00.000Z");
       expect(reminders[1].method).toBe(WorkflowMethods.SMS);
+    });
+
+    it("should skip scheduling entirely when the booking is CANCELLED", async () => {
+      const service = new WorkflowService(mockPrisma);
+      mockPrisma.booking.findUnique.mockResolvedValue({
+        uid: "bk_cancelled",
+        startTime: new Date("2026-09-10T15:00:00.000Z"),
+        endTime: new Date("2026-09-10T15:30:00.000Z"),
+        status: "CANCELLED",
+      });
+
+      const reminders = await service.scheduleRemindersForBooking({
+        bookingUid: "bk_cancelled",
+        eventTypeId: 101,
+        startTime: new Date("2026-09-10T15:00:00.000Z"),
+        endTime: new Date("2026-09-10T15:30:00.000Z"),
+      });
+
+      expect(reminders).toEqual([]);
+      // Neither workflow lookup nor reminder creation may run for a cancelled booking
+      expect(mockPrisma.workflow.findMany).not.toHaveBeenCalled();
+      expect(mockPrisma.workflowReminder.create).not.toHaveBeenCalled();
+    });
+
+    it("should schedule from the booking row's times, not the caller's stale reference", async () => {
+      const service = new WorkflowService(mockPrisma);
+      // Booking was moved after the caller read it: DB row is the source of truth
+      mockPrisma.booking.findUnique.mockResolvedValue({
+        uid: "bk_moved",
+        startTime: new Date("2026-09-11T09:00:00.000Z"),
+        endTime: new Date("2026-09-11T09:30:00.000Z"),
+        status: "ACCEPTED",
+      });
+      mockPrisma.workflow.findMany.mockResolvedValue([
+        {
+          id: 1,
+          trigger: WorkflowTriggerEvents.BEFORE_EVENT,
+          time: 1,
+          timeUnit: TimeUnit.HOUR,
+          steps: [{ id: 10, stepNumber: 1, action: WorkflowActions.EMAIL_ATTENDEE }],
+        },
+      ]);
+      mockPrisma.workflowReminder.create.mockImplementation(({ data }) =>
+        Promise.resolve({ id: Math.random(), ...data })
+      );
+
+      const reminders = await service.scheduleRemindersForBooking({
+        bookingUid: "bk_moved",
+        eventTypeId: 101,
+        // Stale times from before the reschedule
+        startTime: new Date("2026-09-10T15:00:00.000Z"),
+        endTime: new Date("2026-09-10T15:30:00.000Z"),
+      });
+
+      expect(reminders).toHaveLength(1);
+      // 1 hour before the NEW start time (2026-09-11T09:00Z), not the stale one
+      expect(reminders[0].scheduledDate.toISOString()).toBe("2026-09-11T08:00:00.000Z");
+    });
+  });
+
+  describe("cancelRemindersForBooking", () => {
+    it("should mark all unsent reminders for the booking as cancelled", async () => {
+      const service = new WorkflowService(mockPrisma);
+      mockPrisma.workflowReminder.updateMany.mockResolvedValue({ count: 3 });
+
+      const result = await service.cancelRemindersForBooking({ bookingUid: "bk_old" });
+
+      expect(result).toEqual({ count: 3 });
+      expect(mockPrisma.workflowReminder.updateMany).toHaveBeenCalledWith({
+        where: { bookingUid: "bk_old", scheduled: false, cancelled: false },
+        data: { cancelled: true },
+      });
+    });
+
+    it("should propagate the updateMany result count of zero when nothing was pending", async () => {
+      const service = new WorkflowService(mockPrisma);
+      mockPrisma.workflowReminder.updateMany.mockResolvedValue({ count: 0 });
+
+      const result = await service.cancelRemindersForBooking({ bookingUid: "bk_none" });
+
+      expect(result).toEqual({ count: 0 });
     });
   });
 });

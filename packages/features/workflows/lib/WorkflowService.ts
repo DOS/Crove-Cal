@@ -2,6 +2,7 @@ import { ErrorWithCode } from "@calcom/lib/errors";
 import type { PrismaClient } from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
 import {
+  BookingStatus,
   MembershipRole,
   TimeUnit,
   WorkflowActions,
@@ -79,9 +80,7 @@ export class WorkflowService {
       await this.assertTeamMembership({ userId, teamId });
     }
 
-    const where: Prisma.WorkflowWhereInput = teamId
-      ? { teamId }
-      : { userId, teamId: null };
+    const where: Prisma.WorkflowWhereInput = teamId ? { teamId } : { userId, teamId: null };
 
     return this.prisma.workflow.findMany({
       where,
@@ -109,9 +108,7 @@ export class WorkflowService {
       await this.assertTeamMembership({ userId, teamId });
     }
 
-    const where: Prisma.WorkflowWhereInput = teamId
-      ? { id, teamId }
-      : { id, userId };
+    const where: Prisma.WorkflowWhereInput = teamId ? { id, teamId } : { id, userId };
 
     const workflow = await this.prisma.workflow.findFirst({
       where,
@@ -197,13 +194,14 @@ export class WorkflowService {
               includeCalendarEvent: step.includeCalendarEvent ?? false,
             })),
           },
-          activeOn: input.activeOn && input.activeOn.length > 0
-            ? {
-                create: input.activeOn.map((eventTypeId) => ({
-                  eventTypeId,
-                })),
-              }
-            : undefined,
+          activeOn:
+            input.activeOn && input.activeOn.length > 0
+              ? {
+                  create: input.activeOn.map((eventTypeId) => ({
+                    eventTypeId,
+                  })),
+                }
+              : undefined,
         },
         include: {
           steps: true,
@@ -379,7 +377,11 @@ export class WorkflowService {
     const startMs = new Date(startTime).getTime();
     const endMs = new Date(endTime).getTime();
 
-    if (trigger === WorkflowTriggerEvents.NEW_EVENT || trigger === WorkflowTriggerEvents.EVENT_CANCELLED || trigger === WorkflowTriggerEvents.RESCHEDULE_EVENT) {
+    if (
+      trigger === WorkflowTriggerEvents.NEW_EVENT ||
+      trigger === WorkflowTriggerEvents.EVENT_CANCELLED ||
+      trigger === WorkflowTriggerEvents.RESCHEDULE_EVENT
+    ) {
       return new Date(); // Send immediately
     }
 
@@ -425,6 +427,25 @@ export class WorkflowService {
     endTime: Date;
     trigger?: WorkflowTriggerEvents;
   }) {
+    // Re-fetch the booking before creating any reminders: the caller may hold a
+    // stale reference from before a reschedule/cancel, and reminders computed
+    // from stale times would fire at the wrong moment (or at all for a booking
+    // that has since been cancelled).
+    const booking = await this.prisma.booking.findUnique({
+      where: { uid: bookingUid },
+      select: { uid: true, startTime: true, endTime: true, status: true },
+    });
+
+    if (!booking || booking.status === BookingStatus.CANCELLED) {
+      return [];
+    }
+
+    // Times on the booking row are the source of truth; caller-passed values
+    // may be outdated if the booking was moved between the caller's read and
+    // this scheduling call.
+    const effectiveStartTime = booking.startTime;
+    const effectiveEndTime = booking.endTime;
+
     // Find all active workflows associated with this eventType matching trigger
     const workflows = await this.prisma.workflow.findMany({
       where: {
@@ -444,18 +465,15 @@ export class WorkflowService {
     for (const wf of workflows) {
       const scheduledDate = WorkflowService.calculateScheduledDate({
         trigger: wf.trigger,
-        startTime,
-        endTime,
+        startTime: effectiveStartTime,
+        endTime: effectiveEndTime,
         time: wf.time,
         timeUnit: wf.timeUnit,
       });
 
       for (const step of wf.steps) {
         let method: WorkflowMethods = WorkflowMethods.EMAIL;
-        if (
-          step.action === WorkflowActions.SMS_ATTENDEE ||
-          step.action === WorkflowActions.SMS_NUMBER
-        ) {
+        if (step.action === WorkflowActions.SMS_ATTENDEE || step.action === WorkflowActions.SMS_NUMBER) {
           method = WorkflowMethods.SMS;
         } else if (
           step.action === WorkflowActions.WHATSAPP_ATTENDEE ||
@@ -479,6 +497,29 @@ export class WorkflowService {
     }
 
     return createdReminders;
+  }
+
+  /**
+   * Cancel all pending (not yet sent) workflow reminders for a booking.
+   *
+   * Must be called whenever a booking is cancelled or rescheduled: on
+   * reschedule the new booking gets its own fresh reminders, while reminders
+   * still attached to the old (now CANCELLED) booking row must never fire.
+   * Uses the `cancelled` flag rather than deletion so the send path keeps a
+   * consistent audit trail of what was invalidated.
+   */
+  async cancelRemindersForBooking({ bookingUid }: { bookingUid: string }) {
+    return this.prisma.workflowReminder.updateMany({
+      where: {
+        bookingUid,
+        // Never touch reminders that were already sent
+        scheduled: false,
+        cancelled: false,
+      },
+      data: {
+        cancelled: true,
+      },
+    });
   }
 }
 
