@@ -1,4 +1,4 @@
-import { BrevoService } from "@calcom/features/brevo";
+import { BrevoService } from "@calcom/features/brevo/brevoService";
 import logger from "@calcom/lib/logger";
 import { verifyWebhookSignature } from "@calcom/lib/webhook-signature";
 import { webhookMonitor } from "@calcom/lib/webhookMonitor";

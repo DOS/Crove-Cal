@@ -1,4 +1,4 @@
-import { CroveCrmService } from "@calcom/features/crove-crm";
+import { CroveCrmService } from "@calcom/features/crove-crm/croveCrmService";
 import logger from "@calcom/lib/logger";
 import { verifyWebhookSignature } from "@calcom/lib/webhook-signature";
 import { webhookMonitor } from "@calcom/lib/webhookMonitor";
