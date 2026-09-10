@@ -1,7 +1,6 @@
-import { NextRequest } from "next/server";
-import { describe, test, expect, vi, beforeEach } from "vitest";
-
 import { CalendarCacheEventService } from "@calcom/features/calendar-subscription/lib/cache/CalendarCacheEventService";
+import { NextRequest } from "next/server";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 vi.mock("next/server", () => ({
   NextRequest: class MockNextRequest {
@@ -78,27 +77,27 @@ describe("/api/cron/calendar-subscriptions-cleanup", () => {
   });
 
   describe("Authentication", () => {
-    test("should return 403 when no API key is provided", async () => {
+    test("should return 401 when no API key is provided", async () => {
       const request = new NextRequest("http://localhost/api/cron/calendar-subscriptions-cleanup");
 
       const { GET } = await import("../route");
       const response = await GET(request, { params: Promise.resolve({}) });
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
       const body = await response.json();
-      expect(body.message).toBe("Forbidden");
+      expect(body.message).toBe("Not authenticated");
     });
 
-    test("should return 403 when invalid API key is provided", async () => {
+    test("should return 401 when invalid API key is provided", async () => {
       const request = new NextRequest("http://localhost/api/cron/calendar-subscriptions-cleanup");
       request.headers.set("authorization", "invalid-key");
 
       const { GET } = await import("../route");
       const response = await GET(request, { params: Promise.resolve({}) });
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(401);
       const body = await response.json();
-      expect(body.message).toBe("Forbidden");
+      expect(body.message).toBe("Not authenticated");
     });
 
     test("should accept CRON_API_KEY in authorization header", async () => {

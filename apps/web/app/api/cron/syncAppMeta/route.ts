@@ -1,12 +1,13 @@
-import { defaultResponderForAppDir } from "app/api/defaultResponderForAppDir";
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-
+import process from "node:process";
 import { getAppWithMetadata } from "@calcom/app-store/_appRegistry";
 import { shouldEnableApp } from "@calcom/app-store/_utils/validateAppKeys";
 import logger from "@calcom/lib/logger";
 import { prisma } from "@calcom/prisma";
 import type { AppCategories, Prisma } from "@calcom/prisma/client";
+import { assertCronSecret } from "@lib/cronAuth";
+import { defaultResponderForAppDir } from "app/api/defaultResponderForAppDir";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 const isDryRun = process.env.CRON_ENABLE_APP_SYNC !== "true";
 const log = logger.getSubLogger({
@@ -18,10 +19,9 @@ const log = logger.getSubLogger({
  * remains synchronized with any changes made to the app config files.
  */
 async function postHandler(request: NextRequest) {
-  const apiKey = request.headers.get("authorization") || request.nextUrl.searchParams.get("apiKey");
-
-  if (process.env.CRON_API_KEY !== apiKey) {
-    return NextResponse.json({ message: "Not authenticated" }, { status: 401 });
+  const unauthorized = assertCronSecret(request);
+  if (unauthorized) {
+    return unauthorized;
   }
 
   log.info(`🧐 Checking DB apps are in-sync with app metadata`);

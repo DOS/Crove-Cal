@@ -16,6 +16,7 @@ import { CalendarAppDelegationCredentialInvalidGrantError } from "@calcom/lib/Ca
 import { HttpError } from "@calcom/lib/http-error";
 import logger from "@calcom/lib/logger";
 import { safeStringify } from "@calcom/lib/safeStringify";
+import { assertCronSecret } from "@lib/cronAuth";
 import { SelectedCalendarRepository } from "@calcom/features/selectedCalendar/repositories/SelectedCalendarRepository";
 import type { CredentialForCalendarServiceWithEmail } from "@calcom/types/Credential";
 import type { Ensure } from "@calcom/types/utils";
@@ -25,9 +26,10 @@ import { defaultResponderForAppDir } from "../../defaultResponderForAppDir";
 const limitOnQueryingGoogleCalendar = 50;
 const log = logger.getSubLogger({ prefix: ["[api]", "[delegation]", "[selected-calendars/cron]"] });
 const validateRequest = (req: NextRequest) => {
-  const url = new URL(req.url);
-  const apiKey = req.headers.get("authorization") || url.searchParams.get("apiKey");
-  if (![process.env.CRON_API_KEY, `Bearer ${process.env.CRON_SECRET}`].includes(`${apiKey}`)) {
+  const unauthorized = assertCronSecret(req);
+  if (unauthorized) {
+    // This route's handler contract signals auth failures via HttpError, which
+    // defaultResponderForAppDir maps to the status code of the error.
     throw new HttpError({ statusCode: 401, message: "Unauthorized" });
   }
 };
