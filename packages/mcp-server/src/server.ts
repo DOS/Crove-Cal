@@ -31,9 +31,13 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "List Event Types",
       description: "List available meeting and booking event types for a user or organization in Crove Cal.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope). All returned event types belong to this user"),
         username: z.string().optional().describe("Username of the host (e.g., 'joy')"),
         orgSlug: z.string().optional().describe("Organization slug (e.g., 'crove')"),
-        userId: z.number().optional().describe("User ID of the host"),
         limit: z.number().optional().describe("Maximum number of event types to return (default 50)"),
       },
     },
@@ -60,6 +64,11 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "Get Event Type Details",
       description: "Get detailed information about a specific event type by ID or slug.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — required to read event types by ID"),
         eventTypeId: z.number().optional().describe("Event Type ID"),
         slug: z.string().optional().describe("Event Type Slug (e.g., '30min')"),
         username: z.string().optional().describe("Username of the host if slug is provided"),
@@ -88,12 +97,16 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "Create Event Type",
       description: "Create a new meeting/booking event type (e.g., 15min Discovery, 45min Demo).",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — the new event type is created for this user"),
         title: z.string().describe("Title of the event type (e.g., 'Discovery Call')"),
         slug: z.string().describe("Unique URL slug (e.g., 'discovery-call')"),
         length: z.number().describe("Duration of the meeting in minutes (e.g., 30)"),
         description: z.string().optional().describe("Description shown to attendees"),
         username: z.string().optional().describe("Username of the host"),
-        userId: z.number().optional().describe("User ID of the host"),
         requiresConfirmation: z.boolean().optional().describe("Whether host must manually approve bookings"),
       },
     },
@@ -121,6 +134,13 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       description:
         "Update title, duration, description, or confirmation settings for an existing event type.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe(
+            "Host user ID (tenant scope) — updates are rejected unless the event type belongs to this user"
+          ),
         id: z.number().describe("Event Type numeric ID"),
         title: z.string().optional().describe("New title"),
         slug: z.string().optional().describe("New slug"),
@@ -153,6 +173,13 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "Delete Event Type",
       description: "Delete an event type by ID.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe(
+            "Host user ID (tenant scope) — deletes are rejected unless the event type belongs to this user"
+          ),
         id: z.number().describe("Event Type numeric ID to delete"),
       },
     },
@@ -180,6 +207,11 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       description:
         "Retrieve bookable time slots for an event type between two dates (calculating host availability minus booked meetings).",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — availability is computed for this host"),
         eventTypeId: z.number().optional().describe("Event Type ID"),
         slug: z.string().optional().describe("Event Type Slug (e.g., '30min')"),
         username: z.string().optional().describe("Host username if slug is used"),
@@ -211,6 +243,11 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "Create Booking",
       description: "Schedule a new booking/meeting in Crove Cal with attendee information.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — the event type must belong to this host"),
         eventTypeId: z.number().describe("Event Type ID to book"),
         start: z.string().describe("Booking start time in ISO 8601 format (e.g., '2026-08-30T10:00:00Z')"),
         name: z.string().describe("Attendee's full name"),
@@ -246,6 +283,11 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "Get Booking",
       description: "Retrieve booking details by booking UID or ID.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — only bookings hosted by this user are returned"),
         bookingUid: z.string().optional().describe("Booking unique identifier (UID)"),
         bookingId: z.number().optional().describe("Booking numeric ID"),
       },
@@ -273,6 +315,11 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "Reschedule Booking",
       description: "Reschedule an existing booking to a new start time.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — only bookings hosted by this user can be rescheduled"),
         bookingUid: z.string().describe("Booking unique identifier (UID) to reschedule"),
         newStart: z.string().describe("New start time in ISO 8601 format (e.g., '2026-08-31T14:00:00Z')"),
         reason: z.string().optional().describe("Reason for rescheduling"),
@@ -302,6 +349,11 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "Cancel Booking",
       description: "Cancel an existing booking and free up the slot.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — only bookings hosted by this user can be cancelled"),
         bookingUid: z.string().describe("Booking unique identifier (UID) to cancel"),
         cancellationReason: z.string().optional().describe("Reason for cancellation"),
         cancelledBy: z.string().optional().describe("Who cancelled the meeting (e.g., 'Customer', 'Agent')"),
@@ -330,6 +382,11 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       title: "List Bookings",
       description: "List recent bookings with optional filter by attendee/host email and status.",
       inputSchema: {
+        userId: z
+          .number()
+          .int()
+          .positive()
+          .describe("Host user ID (tenant scope) — only bookings hosted by this user are listed"),
         userEmail: z.string().optional().describe("Filter by host or attendee email address"),
         status: z
           .enum(["ACCEPTED", "CANCELLED", "PENDING", "REJECTED"])
@@ -364,7 +421,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       inputSchema: {
         email: z.string().optional().describe("Email address of the user"),
         username: z.string().optional().describe("Username of the user"),
-        userId: z.number().optional().describe("Numeric ID of the user"),
+        userId: z.number().int().positive().optional().describe("Numeric ID of the user"),
       },
     },
     async (args) => {
@@ -391,7 +448,7 @@ export function createCroveCalMcpServer(prisma: PrismaClient) {
       description:
         "Retrieve working hours schedules and daily availability intervals for a user in Crove Cal.",
       inputSchema: {
-        userId: z.number().optional().describe("User ID"),
+        userId: z.number().int().positive().optional().describe("User ID"),
         username: z.string().optional().describe("Username"),
         email: z.string().optional().describe("Email address"),
       },
