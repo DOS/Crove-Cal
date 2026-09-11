@@ -10,6 +10,7 @@ const mockPrisma = {
   },
   user: {
     findFirst: vi.fn(),
+    findUnique: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
   },
@@ -20,7 +21,13 @@ const mockPrisma = {
   profile: {
     upsert: vi.fn(),
   },
+  $transaction: vi.fn(),
 };
+
+// The route resolves users with findUnique (indexed, canonical-lowercase email) while the
+// existing per-test mocks configure findFirst; delegate so both names return the same stub.
+mockPrisma.user.findUnique.mockImplementation(mockPrisma.user.findFirst);
+mockPrisma.$transaction.mockImplementation((fn: (tx: typeof mockPrisma) => unknown) => fn(mockPrisma));
 
 vi.mock("@calcom/prisma", () => ({
   default: mockPrisma,
@@ -82,7 +89,7 @@ describe("/api/webhooks/dos-org-sync", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.DOS_SYNC_WEBHOOK_SECRET = SECRET;
+    process.env.CROVE_CAL_DOS_WEBHOOK_SECRET = SECRET;
   });
 
   test("OPTIONS should return 204 with CORS headers", async () => {
@@ -94,6 +101,7 @@ describe("/api/webhooks/dos-org-sync", () => {
   });
 
   test("POST should return 500 when webhook secret is missing", async () => {
+    delete process.env.CROVE_CAL_DOS_WEBHOOK_SECRET;
     delete process.env.DOS_SYNC_WEBHOOK_SECRET;
     delete process.env.OIDC_CLIENT_SECRET;
 

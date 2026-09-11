@@ -112,7 +112,11 @@ export async function POST(req: NextRequest) {
   try {
     const rawBody = await req.text();
     const signature = req.headers.get("x-dos-signature");
-    const secret = process.env.DOS_SYNC_WEBHOOK_SECRET;
+    // Why: product-prefixed name matches the GCP Secret Manager convention shared
+    // with the other Crove apps (CROVE_SIGN_DOS_WEBHOOK_SECRET, CROVE_CRM_WEBHOOK_SECRET),
+    // so each product holds its own signing key and one leak cannot forge another's events.
+    // The unprefixed name is kept as a fallback for deployments that already set it.
+    const secret = process.env.CROVE_CAL_DOS_WEBHOOK_SECRET || process.env.DOS_SYNC_WEBHOOK_SECRET;
 
     if (!secret) {
       webhookMonitor.recordDelivery({
