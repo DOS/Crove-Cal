@@ -49,6 +49,11 @@ jobs:
           # shared Actions cache. mode=min exports only the final image layers.
           cache-to: type=gha,mode=min
           build-args: |
+            # Build-time only: next.config.ts asserts these during `next build`. The runner
+            # stage does not carry them, so the real values must come from the runtime
+            # environment - scripts/start.sh refuses to boot when they are missing.
+            NEXTAUTH_SECRET=build-time-placeholder-not-used-at-runtime
+            CALENDSO_ENCRYPTION_KEY=build-time-placeholder-not-used-at-runtime
             NEXT_PUBLIC_WEBAPP_URL=https://cal.crove.com
             NEXT_PUBLIC_API_V2_URL=http://localhost:5555/api/v2
             NEXT_PUBLIC_LICENSE_CONSENT=agree
