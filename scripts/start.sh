@@ -1,19 +1,21 @@
 #!/bin/sh
 set -x
 
-# CR-08 startup guard: refuse to boot when secrets are missing or equal the old
-# publicly-known insecure default "secret". Real values must come from the runtime
-# environment (docker-compose env_file / docker run -e), never from the image.
-if [ -z "$NEXTAUTH_SECRET" ] || [ "$NEXTAUTH_SECRET" = "secret" ]; then
-  echo "ERROR: NEXTAUTH_SECRET is unset or equals the insecure default 'secret'."
-  echo "Set a strong random value at runtime, e.g.: openssl rand -base64 32"
-  exit 1
-fi
-if [ -z "$CALENDSO_ENCRYPTION_KEY" ] || [ "$CALENDSO_ENCRYPTION_KEY" = "secret" ]; then
-  echo "ERROR: CALENDSO_ENCRYPTION_KEY is unset or equals the insecure default 'secret'."
-  echo "Set a strong random value at runtime, e.g.: openssl rand -base64 32"
-  exit 1
-fi
+# CR-08 startup guard: refuse to boot when a secret is missing or set to a publicly-known
+# value. The build stage passes a placeholder because next.config.ts asserts these during
+# `next build`; the runner stage does not carry them, so the real value must come from the
+# runtime environment (docker-compose env_file / docker run -e).
+reject_insecure_secret() {
+  case "$2" in
+    "" | "secret" | "build-time-placeholder-not-used-at-runtime")
+      echo "ERROR: $1 is unset or set to a publicly-known value."
+      echo "Set a strong random value at runtime, e.g.: openssl rand -base64 32"
+      exit 1
+      ;;
+  esac
+}
+reject_insecure_secret NEXTAUTH_SECRET "$NEXTAUTH_SECRET"
+reject_insecure_secret CALENDSO_ENCRYPTION_KEY "$CALENDSO_ENCRYPTION_KEY"
 
 # Replace the statically built BUILT_NEXT_PUBLIC_WEBAPP_URL with run-time NEXT_PUBLIC_WEBAPP_URL
 # NOTE: if these values are the same, this will be skipped.
