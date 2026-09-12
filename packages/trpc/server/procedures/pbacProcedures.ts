@@ -1,14 +1,43 @@
+import type { PrismaClient } from "@calcom/prisma";
+import prisma from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import authedProcedure from "./authedProcedure";
 
 type PermissionString = string;
+
+type CheckPermissionArgs = {
+  userId: number;
+  teamId: number;
+  permission: PermissionString;
+  fallbackRoles: MembershipRole[];
+};
+
 class PermissionCheckService {
-  constructor(_prisma?: unknown) {}
-  async checkPermission(..._args: unknown[]) { return true; }
-  async hasPermission(..._args: unknown[]) { return true; }
-  async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> { return []; }
+  constructor(private readonly prismaClient: PrismaClient = prisma) {}
+
+  // The only current consumer's handler is a stub; this real membership check closes the silent
+  // no-op trap before real handlers land on PBAC procedures.
+  async checkPermission({ userId, teamId, fallbackRoles }: CheckPermissionArgs): Promise<boolean> {
+    const membership = await this.prismaClient.membership.findFirst({
+      where: {
+        userId,
+        teamId,
+        accepted: true,
+        role: { in: fallbackRoles },
+      },
+      select: { id: true },
+    });
+    return membership !== null;
+  }
+
+  async hasPermission(..._args: unknown[]) {
+    return true;
+  }
+  async getTeamIdsWithPermission(..._args: unknown[]): Promise<number[]> {
+    return [];
+  }
 }
 
 /**
@@ -95,4 +124,4 @@ function createOrgPbacProcedure(
   });
 }
 
-export { createTeamPbacProcedure, createOrgPbacProcedure };
+export { createTeamPbacProcedure, createOrgPbacProcedure, PermissionCheckService };

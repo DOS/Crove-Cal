@@ -18,6 +18,16 @@ export interface DosTeamClaim {
   slug?: string;
 }
 
+/**
+ * Reads an id from team metadata (e.g. dosOrgId/dosTeamId). Returns "" when unset or empty,
+ * so a slug fallback can distinguish "claimed by a real DOS id" from "never claimed".
+ */
+const readMetadataId = (metadata: unknown, key: "dosOrgId" | "dosTeamId"): string => {
+  if (typeof metadata !== "object" || metadata === null) return "";
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+};
+
 export async function syncDosOrganizations(
   userId: number,
   organizations?: DosOrgClaim[],
@@ -110,6 +120,12 @@ export async function syncDosOrganizations(
             select: { id: true, metadata: true },
           });
 
+      // Slug fallback: a slug match that is already owned by any DOS org id must never be
+      // adopted (it may belong to a different DOS org) — skip the claim instead.
+      if (!orgId && orgTeam && readMetadataId(orgTeam.metadata, "dosOrgId")) {
+        continue;
+      }
+
       if (!orgTeam) {
         let uniqueSlug = orgSlug;
         const existingSlugTeam = await prisma.team.findFirst({
@@ -150,9 +166,13 @@ export async function syncDosOrganizations(
         orgIdToDbTeamId.set(orgId, orgTeam.id);
       }
 
+      // Elevated roles are only trusted when the claim's verified id matches the org's own
+      // dosOrgId; slug-fallback matches (unverified org identity) are capped at MEMBER.
+      const orgRoleVerified = orgId !== "" && readMetadataId(orgTeam.metadata, "dosOrgId") === orgId;
       const rawRole = (org.role || "").toUpperCase();
-      const membershipRole =
-        rawRole === "OWNER"
+      const membershipRole = !orgRoleVerified
+        ? MembershipRole.MEMBER
+        : rawRole === "OWNER"
           ? MembershipRole.OWNER
           : rawRole === "ADMIN" || rawRole === "LEAD"
             ? MembershipRole.ADMIN
@@ -223,7 +243,7 @@ export async function syncDosOrganizations(
               isOrganization: false,
               metadata: { path: ["dosTeamId"], equals: subTeamId },
             },
-            select: { id: true, parentId: true },
+            select: { id: true, parentId: true, metadata: true },
           })
         : await prisma.team.findFirst({
             where: {
@@ -231,8 +251,14 @@ export async function syncDosOrganizations(
               slug: subTeamSlug,
               ...(parentOrgDbId ? { parentId: parentOrgDbId } : {}),
             },
-            select: { id: true, parentId: true },
+            select: { id: true, parentId: true, metadata: true },
           });
+
+      // Slug fallback: same guard as orgs — never adopt a sub-team that is already owned
+      // by any DOS team id; skip the claim instead.
+      if (!subTeamId && childTeam && readMetadataId(childTeam.metadata, "dosTeamId")) {
+        continue;
+      }
 
       if (!childTeam) {
         let uniqueSlug = subTeamSlug;
@@ -256,7 +282,7 @@ export async function syncDosOrganizations(
               dosOrgId: parentOrgDosId,
             },
           },
-          select: { id: true, parentId: true },
+          select: { id: true, parentId: true, metadata: true },
         });
       } else if (parentOrgDbId && childTeam.parentId !== parentOrgDbId) {
         // Link to parent organization if previously unassigned
@@ -266,10 +292,14 @@ export async function syncDosOrganizations(
         });
       }
 
-      // Map LEAD / ADMIN -> ADMIN, MEMBER -> MEMBER
+      // Elevated roles only when the claim's verified id matches the team's own dosTeamId;
+      // slug-fallback matches (unverified team identity) are capped at MEMBER.
+      const subTeamRoleVerified =
+        subTeamId !== "" && readMetadataId(childTeam.metadata, "dosTeamId") === subTeamId;
       const rawRole = (subTeam.role || "").toUpperCase();
-      const teamRole =
-        rawRole === "LEAD" || rawRole === "ADMIN" || rawRole === "OWNER"
+      const teamRole = !subTeamRoleVerified
+        ? MembershipRole.MEMBER
+        : rawRole === "LEAD" || rawRole === "ADMIN" || rawRole === "OWNER"
           ? MembershipRole.ADMIN
           : MembershipRole.MEMBER;
 

@@ -1,20 +1,21 @@
 import type { PrismaClient } from "@calcom/prisma";
+import type { Prisma } from "@calcom/prisma/client";
 
 export interface ListEventTypesInput {
+  /** Host user ID (tenant scope) — all returned event types belong to this user */
+  userId: number;
   username?: string;
   orgSlug?: string;
-  userId?: number;
   limit?: number;
 }
 
 export async function listEventTypesHandler(prisma: PrismaClient, input: ListEventTypesInput) {
-  const where: Parameters<typeof prisma.eventType.findMany>[0]["where"] = {
+  const where: Prisma.EventTypeWhereInput = {
     hidden: false,
+    userId: input.userId,
   };
 
-  if (input.userId) {
-    where.userId = input.userId;
-  } else if (input.username) {
+  if (input.username) {
     where.users = {
       some: {
         username: input.username,
@@ -63,6 +64,8 @@ export async function listEventTypesHandler(prisma: PrismaClient, input: ListEve
 }
 
 export interface GetEventTypeDetailsInput {
+  /** Host user ID (tenant scope) — the event type must belong to this user */
+  userId: number;
   eventTypeId?: number;
   slug?: string;
   username?: string;
@@ -73,7 +76,9 @@ export async function getEventTypeDetailsHandler(prisma: PrismaClient, input: Ge
     throw new Error("Either eventTypeId or slug must be provided");
   }
 
-  const where: Parameters<typeof prisma.eventType.findFirst>[0]["where"] = {};
+  const where: Prisma.EventTypeWhereInput = {
+    userId: input.userId,
+  };
 
   if (input.eventTypeId) {
     where.id = input.eventTypeId;
@@ -127,7 +132,8 @@ export async function getEventTypeDetailsHandler(prisma: PrismaClient, input: Ge
 }
 
 export interface CreateEventTypeInput {
-  userId?: number;
+  /** Host user ID (tenant scope) — the new event type is created for this user */
+  userId: number;
   username?: string;
   title: string;
   slug: string;
@@ -149,13 +155,9 @@ export async function createEventTypeHandler(prisma: PrismaClient, input: Create
   }
 
   if (!targetUserId) {
-    // Default to the first available user
-    const firstUser = await prisma.user.findFirst({ select: { id: true } });
-    if (firstUser) targetUserId = firstUser.id;
-  }
-
-  if (!targetUserId) {
-    throw new Error("User ID is required to create an event type");
+    throw new Error(
+      "User ID is required to create an event type: provide userId or a username that resolves to an existing user"
+    );
   }
 
   const newEventType = await prisma.eventType.create({
@@ -187,6 +189,8 @@ export async function createEventTypeHandler(prisma: PrismaClient, input: Create
 }
 
 export interface UpdateEventTypeInput {
+  /** Host user ID (tenant scope) — updates are rejected unless the event type belongs to this user */
+  userId: number;
   id: number;
   title?: string;
   slug?: string;
@@ -197,17 +201,17 @@ export interface UpdateEventTypeInput {
 }
 
 export async function updateEventTypeHandler(prisma: PrismaClient, input: UpdateEventTypeInput) {
-  const existing = await prisma.eventType.findUnique({
-    where: { id: input.id },
+  const existing = await prisma.eventType.findFirst({
+    where: { id: input.id, userId: input.userId },
     select: { id: true },
   });
 
   if (!existing) {
-    throw new Error(`Event type with ID ${input.id} not found`);
+    throw new Error(`Event type with ID ${input.id} not found for user ${input.userId}`);
   }
 
   const updated = await prisma.eventType.update({
-    where: { id: input.id },
+    where: { id: input.id, userId: input.userId },
     data: {
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.slug !== undefined ? { slug: input.slug } : {}),
@@ -233,21 +237,23 @@ export async function updateEventTypeHandler(prisma: PrismaClient, input: Update
 }
 
 export interface DeleteEventTypeInput {
+  /** Host user ID (tenant scope) — deletes are rejected unless the event type belongs to this user */
+  userId: number;
   id: number;
 }
 
 export async function deleteEventTypeHandler(prisma: PrismaClient, input: DeleteEventTypeInput) {
-  const existing = await prisma.eventType.findUnique({
-    where: { id: input.id },
+  const existing = await prisma.eventType.findFirst({
+    where: { id: input.id, userId: input.userId },
     select: { id: true },
   });
 
   if (!existing) {
-    throw new Error(`Event type with ID ${input.id} not found`);
+    throw new Error(`Event type with ID ${input.id} not found for user ${input.userId}`);
   }
 
   const deleted = await prisma.eventType.delete({
-    where: { id: input.id },
+    where: { id: input.id, userId: input.userId },
     select: {
       id: true,
       title: true,

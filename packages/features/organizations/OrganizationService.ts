@@ -1,4 +1,4 @@
-import { ProfileRepository } from "@calcom/features/profile/repositories/ProfileRepository";
+import { ErrorWithCode } from "@calcom/lib/errors";
 import slugify from "@calcom/lib/slugify";
 import type { Prisma, PrismaClient } from "@calcom/prisma";
 import prisma from "@calcom/prisma";
@@ -44,7 +44,6 @@ export class OrganizationService {
       },
       select: {
         role: true,
-        accepted: true,
         team: {
           select: {
             id: true,
@@ -54,31 +53,17 @@ export class OrganizationService {
             bio: true,
             isOrganization: true,
             metadata: true,
+            _count: {
+              select: {
+                members: true,
+                children: true,
+              },
+            },
             children: {
               select: {
                 id: true,
                 name: true,
                 slug: true,
-                members: {
-                  select: {
-                    userId: true,
-                  },
-                },
-              },
-            },
-            members: {
-              select: {
-                userId: true,
-                role: true,
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    username: true,
-                    email: true,
-                    avatarUrl: true,
-                  },
-                },
               },
             },
           },
@@ -94,8 +79,8 @@ export class OrganizationService {
     return memberships.map((m) => ({
       ...m.team,
       userRole: m.role,
-      memberCount: m.team.members.length,
-      teamsCount: m.team.children.length,
+      memberCount: m.team._count.members,
+      teamsCount: m.team._count.children,
       childTeams: m.team.children,
     }));
   }
@@ -113,6 +98,10 @@ export class OrganizationService {
       },
       select: { role: true, accepted: true },
     });
+
+    if (!membership?.accepted) {
+      throw ErrorWithCode.Factory.Forbidden("You do not have permission to view this organization");
+    }
 
     const org = await this.db.team.findFirst({
       where: {
@@ -153,7 +142,7 @@ export class OrganizationService {
     });
 
     if (!org) {
-      throw new Error(`Organization with ID ${params.orgId} not found`);
+      throw ErrorWithCode.Factory.NotFound(`Organization with ID ${params.orgId} not found`);
     }
 
     return {
@@ -174,34 +163,54 @@ export class OrganizationService {
           teamId: input.orgId,
         },
       },
-      select: { role: true },
+      select: { role: true, accepted: true },
     });
 
     if (
-      !membership ||
+      !membership?.accepted ||
       (membership.role !== MembershipRole.OWNER && membership.role !== MembershipRole.ADMIN)
     ) {
-      throw new Error("Unauthorized: Only Organization Owners or Admins can update organization settings.");
+      throw ErrorWithCode.Factory.Forbidden(
+        "Unauthorized: Only Organization Owners or Admins can update organization settings."
+      );
     }
 
-    const data: Parameters<typeof this.db.team.update>[0]["data"] = {};
+    const data: Prisma.TeamUpdateArgs["data"] = {};
     if (input.name !== undefined) data.name = input.name;
     if (input.slug !== undefined) data.slug = slugify(input.slug);
     if (input.bio !== undefined) data.bio = input.bio;
     if (input.logoUrl !== undefined) data.logoUrl = input.logoUrl;
     if (input.metadata !== undefined) data.metadata = input.metadata;
 
-    const updated = await this.db.team.update({
-      where: { id: input.orgId },
-      data,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        bio: true,
-        logoUrl: true,
-        metadata: true,
-      },
+    const updated = await this.db.$transaction(async (tx) => {
+      const team = await tx.team.update({
+        where: { id: input.orgId },
+        data,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          bio: true,
+          logoUrl: true,
+          metadata: true,
+        },
+      });
+
+      if (input.lockEventTypeCreationForUsers !== undefined) {
+        await tx.organizationSettings.upsert({
+          where: { organizationId: input.orgId },
+          update: { lockEventTypeCreationForUsers: input.lockEventTypeCreationForUsers },
+          create: {
+            organizationId: input.orgId,
+            // No real domain is known here; an empty accept-domain keeps domain-based
+            // auto-accept disabled until the organization configures one.
+            orgAutoAcceptEmail: "",
+            lockEventTypeCreationForUsers: input.lockEventTypeCreationForUsers,
+          },
+        });
+      }
+
+      return team;
     });
 
     return updated;
@@ -218,14 +227,16 @@ export class OrganizationService {
           teamId: input.orgId,
         },
       },
-      select: { role: true },
+      select: { role: true, accepted: true },
     });
 
     if (
-      !orgMembership ||
+      !orgMembership?.accepted ||
       (orgMembership.role !== MembershipRole.OWNER && orgMembership.role !== MembershipRole.ADMIN)
     ) {
-      throw new Error("Unauthorized: You must be an Organization Owner or Admin to create sub-teams.");
+      throw ErrorWithCode.Factory.Forbidden(
+        "Unauthorized: You must be an Organization Owner or Admin to create sub-teams."
+      );
     }
 
     const baseSlug = input.slug ? slugify(input.slug) : slugify(input.name);

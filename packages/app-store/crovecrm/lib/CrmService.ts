@@ -1,4 +1,4 @@
-import { CroveCrmService } from "@calcom/features/crove-crm";
+import { CroveCrmService } from "@calcom/features/crove-crm/croveCrmService";
 import type { CalendarEvent, EventBusyDate, IntegrationCalendar } from "@calcom/types/Calendar";
 import type { CredentialPayload } from "@calcom/types/Credential";
 import type { CRM, Contact, ContactCreateInput, CrmEvent } from "@calcom/types/CrmService";

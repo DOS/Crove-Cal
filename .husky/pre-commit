@@ -4,4 +4,4 @@ if [ -f .git/MERGE_HEAD ]; then
 fi
 
 yarn lint-staged --verbose
-yarn app-store:build && git add packages/app-store/*.generated.*
+yarn app-store:build

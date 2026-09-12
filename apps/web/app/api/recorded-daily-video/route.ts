@@ -19,6 +19,7 @@ import { getTeamIdFromEventType } from "@calcom/lib/getTeamIdFromEventType";
 import { HttpError } from "@calcom/lib/http-error";
 import logger from "@calcom/lib/logger";
 import { safeStringify } from "@calcom/lib/safeStringify";
+import { timingSafeStringsEqual } from "@calcom/lib/webhook-signature";
 import { generateVideoToken } from "@calcom/lib/videoTokens";
 import prisma from "@calcom/prisma";
 import { getBooking } from "@calcom/web/lib/daily-webhook/getBooking";
@@ -70,7 +71,10 @@ export async function postHandler(request: NextRequest) {
     const webhookTimestamp = headersList.get("x-webhook-timestamp");
     const computed_signature = computeSignature(hmacSecret, body, webhookTimestamp);
 
-    if (headersList.get("x-webhook-signature") !== computed_signature) {
+    const receivedSignature = headersList.get("x-webhook-signature");
+    // Why: `!==` on the signature short-circuits at the first differing byte, leaking
+    // timing information that helps forge HMAC signatures; compare in constant time.
+    if (!receivedSignature || !timingSafeStringsEqual(receivedSignature, computed_signature)) {
       return NextResponse.json({ message: "Signature does not match" }, { status: 403 });
     }
   }

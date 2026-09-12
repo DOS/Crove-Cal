@@ -4,6 +4,12 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "private": true,
+  "dependencies": {
+    "@calcom/app-store": "workspace:*",
+    "@calcom/features": "workspace:*",
+    "@calcom/lib": "workspace:*",
+    "zod": "3.25.76"
+  },
   "devDependencies": {
     "@calcom/types": "workspace:*"
   }

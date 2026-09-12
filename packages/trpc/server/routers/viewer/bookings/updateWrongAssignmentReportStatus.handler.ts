@@ -1,10 +1,10 @@
 import { WrongAssignmentReportRepository } from "@calcom/features/bookings/repositories/WrongAssignmentReportRepository";
+import { ErrorWithCode } from "@calcom/lib/errors";
 import prisma from "@calcom/prisma";
 import { MembershipRole } from "@calcom/prisma/enums";
 import type { TrpcSessionUser } from "@calcom/trpc/server/types";
 import { TRPCError } from "@trpc/server";
 import type { TUpdateWrongAssignmentReportStatusInputSchema } from "./updateWrongAssignmentReportStatus.schema";
-
 
 type UpdateWrongAssignmentReportStatusOptions = {
   ctx: {
@@ -31,6 +31,27 @@ export const updateWrongAssignmentReportStatusHandler = async ({
     });
   }
 
+  if (!report.teamId) {
+    throw ErrorWithCode.Factory.Forbidden(
+      "You do not have permission to update this wrong assignment report"
+    );
+  }
+
+  const membership = await prisma.membership.findFirst({
+    where: {
+      userId: user.id,
+      teamId: report.teamId,
+      accepted: true,
+      role: { in: [MembershipRole.ADMIN, MembershipRole.OWNER] },
+    },
+    select: { id: true },
+  });
+
+  if (!membership) {
+    throw ErrorWithCode.Factory.Forbidden(
+      "You do not have permission to update this wrong assignment report"
+    );
+  }
 
   const updatedReport = await repo.updateStatus({
     id: reportId,

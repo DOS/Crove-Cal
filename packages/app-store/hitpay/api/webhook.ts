@@ -7,6 +7,7 @@ import { distributedTracing } from "@calcom/lib/tracing/factory";
 import { IS_PRODUCTION } from "@calcom/lib/constants";
 import { HttpError as HttpCode } from "@calcom/lib/http-error";
 import { getServerErrorFromUnknown } from "@calcom/lib/server/getServerErrorFromUnknown";
+import { timingSafeStringsEqual } from "@calcom/lib/webhook-signature";
 import prisma from "@calcom/prisma";
 
 import appConfig from "../config.json";
@@ -104,7 +105,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { saltKey } = keyObj;
     const signed = generateSignatureArray(saltKey, excluded as ExcludedWebhookReturn);
-    if (signed !== obj.hmac) {
+    // Why: `!==` on the HMAC short-circuits at the first differing byte, leaking
+    // timing information that helps forge webhook signatures; compare in constant
+    // time. The typeof check keeps a malformed body (no hmac) on the 400 path since
+    // obj is cast from untrusted JSON.
+    if (typeof obj.hmac !== "string" || !timingSafeStringsEqual(signed, obj.hmac)) {
       throw new HttpCode({ statusCode: 400, message: "Bad Request" });
     }
 

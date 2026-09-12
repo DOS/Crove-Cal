@@ -6,7 +6,10 @@ export class CroveCrmService {
 
   constructor(apiKey?: string, baseUrl?: string) {
     this.apiKey = (apiKey || process.env.CROVE_CRM_API_KEY || "").trim();
-    this.baseUrl = (baseUrl || process.env.CROVE_CRM_API_URL || "https://crm.crove.com/api/v1").replace(/\/$/, "");
+    this.baseUrl = (baseUrl || process.env.CROVE_CRM_API_URL || "https://crm.crove.com/api/v1").replace(
+      /\/$/,
+      ""
+    );
   }
 
   public isConfigured(): boolean {
@@ -56,6 +59,7 @@ export class CroveCrmService {
           accept: "application/json",
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000),
       });
 
       if (response.ok || response.status === 200 || response.status === 201) {
@@ -109,6 +113,7 @@ export class CroveCrmService {
           accept: "application/json",
         },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(5000),
       });
 
       if (response.ok || response.status === 200 || response.status === 201) {

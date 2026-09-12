@@ -2,6 +2,7 @@ import { ZVerifyCodeInputSchema } from "@calcom/prisma/zod-utils";
 
 import authedProcedure from "../../../procedures/authedProcedure";
 import publicProcedure from "../../../procedures/publicProcedure";
+import { enforceAuthRateLimit } from "../../../middlewares/authRateLimitMiddleware";
 import { router } from "../../../trpc";
 import { ZChangePasswordInputSchema } from "./changePassword.schema";
 import { ZResendVerifyEmailSchema } from "./resendVerifyEmail.schema";
@@ -19,55 +20,90 @@ type AuthRouterHandlerCache = {
 };
 
 export const authRouter = router({
-  changePassword: authedProcedure.input(ZChangePasswordInputSchema).mutation(async ({ input, ctx }) => {
-    const { changePasswordHandler } = await import("./changePassword.handler");
+  changePassword: authedProcedure
+    .use(async ({ ctx, input, next }) => {
+      await enforceAuthRateLimit("changePassword", ctx, input);
+      return next();
+    })
+    .input(ZChangePasswordInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { changePasswordHandler } = await import("./changePassword.handler");
 
-    return changePasswordHandler({
-      ctx,
-      input,
-    });
-  }),
+      return changePasswordHandler({
+        ctx,
+        input,
+      });
+    }),
 
-  verifyPassword: authedProcedure.input(ZVerifyPasswordInputSchema).mutation(async ({ input, ctx }) => {
-    const { verifyPasswordHandler } = await import("./verifyPassword.handler");
+  verifyPassword: authedProcedure
+    .use(async ({ ctx, input, next }) => {
+      await enforceAuthRateLimit("verifyPassword", ctx, input);
+      return next();
+    })
+    .input(ZVerifyPasswordInputSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { verifyPasswordHandler } = await import("./verifyPassword.handler");
 
-    return verifyPasswordHandler({
-      ctx,
-      input,
-    });
-  }),
+      return verifyPasswordHandler({
+        ctx,
+        input,
+      });
+    }),
 
-  verifyCodeUnAuthenticated: publicProcedure.input(ZVerifyCodeInputSchema).mutation(async ({ input }) => {
-    const { verifyCodeUnAuthenticatedHandler } = await import("./verifyCodeUnAuthenticated.handler");
+  verifyCodeUnAuthenticated: publicProcedure
+    .use(async ({ ctx, input, next }) => {
+      await enforceAuthRateLimit("verifyCodeUnAuthenticated", ctx, input);
+      return next();
+    })
+    .input(ZVerifyCodeInputSchema)
+    .mutation(async ({ input }) => {
+      const { verifyCodeUnAuthenticatedHandler } = await import("./verifyCodeUnAuthenticated.handler");
 
-    return verifyCodeUnAuthenticatedHandler({
-      input,
-    });
-  }),
+      return verifyCodeUnAuthenticatedHandler({
+        input,
+      });
+    }),
 
-  sendVerifyEmailCode: publicProcedure.input(ZSendVerifyEmailCodeSchema).mutation(async ({ input, ctx }) => {
-    const { sendVerifyEmailCodeHandler } = await import("./sendVerifyEmailCode.handler");
+  sendVerifyEmailCode: publicProcedure
+    .use(async ({ ctx, input, next }) => {
+      await enforceAuthRateLimit("sendVerifyEmailCode", ctx, input);
+      return next();
+    })
+    .input(ZSendVerifyEmailCodeSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { sendVerifyEmailCodeHandler } = await import("./sendVerifyEmailCode.handler");
 
-    return sendVerifyEmailCodeHandler({
-      input,
-      req: ctx.req,
-    });
-  }),
+      return sendVerifyEmailCodeHandler({
+        input,
+        req: ctx.req,
+      });
+    }),
 
-  resendVerifyEmail: authedProcedure.input(ZResendVerifyEmailSchema).mutation(async ({ input, ctx }) => {
-    const { resendVerifyEmail } = await import("./resendVerifyEmail.handler");
+  resendVerifyEmail: authedProcedure
+    .use(async ({ ctx, input, next }) => {
+      await enforceAuthRateLimit("resendVerifyEmail", ctx, input);
+      return next();
+    })
+    .input(ZResendVerifyEmailSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { resendVerifyEmail } = await import("./resendVerifyEmail.handler");
 
-    return resendVerifyEmail({
-      input,
-      ctx,
-    });
-  }),
+      return resendVerifyEmail({
+        input,
+        ctx,
+      });
+    }),
 
-  createAccountPassword: authedProcedure.mutation(async ({ ctx }) => {
-    const { createAccountPasswordHandler } = await import("./createAccountPassword.handler");
+  createAccountPassword: authedProcedure
+    .use(async ({ ctx, input, next }) => {
+      await enforceAuthRateLimit("createAccountPassword", ctx, input);
+      return next();
+    })
+    .mutation(async ({ ctx }) => {
+      const { createAccountPasswordHandler } = await import("./createAccountPassword.handler");
 
-    return createAccountPasswordHandler({
-      ctx,
-    });
-  }),
+      return createAccountPasswordHandler({
+        ctx,
+      });
+    }),
 });

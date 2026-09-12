@@ -1,4 +1,3 @@
-import process from "node:process";
 import { BookingRepository } from "@calcom/features/bookings/repositories/BookingRepository";
 import { DefaultAdapterFactory } from "@calcom/features/calendar-subscription/adapters/AdaptersFactory";
 import { CalendarSubscriptionService } from "@calcom/features/calendar-subscription/lib/CalendarSubscriptionService";
@@ -11,6 +10,7 @@ import { getUserFeatureRepository } from "@calcom/features/di/containers/UserFea
 import { SelectedCalendarRepository } from "@calcom/features/selectedCalendar/repositories/SelectedCalendarRepository";
 import { prisma } from "@calcom/prisma";
 import { defaultResponderForAppDir } from "@calcom/web/app/api/defaultResponderForAppDir";
+import { assertCronSecret } from "@lib/cronAuth";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -22,10 +22,9 @@ import { NextResponse } from "next/server";
  * @returns
  */
 async function getHandler(request: NextRequest) {
-  const apiKey = request.headers.get("authorization") || request.nextUrl.searchParams.get("apiKey");
-
-  if (![process.env.CRON_API_KEY, `Bearer ${process.env.CRON_SECRET}`].includes(`${apiKey}`)) {
-    return NextResponse.json({ message: "Forbiden" }, { status: 403 });
+  const unauthorized = assertCronSecret(request);
+  if (unauthorized) {
+    return unauthorized;
   }
 
   // instantiate dependencies

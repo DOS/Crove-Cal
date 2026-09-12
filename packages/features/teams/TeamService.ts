@@ -1,8 +1,10 @@
+import { randomBytes } from "node:crypto";
 import { ProfileRepository } from "@calcom/features/profile/repositories/ProfileRepository";
+import { ErrorWithCode } from "@calcom/lib/errors";
 import slugify from "@calcom/lib/slugify";
 import type { Prisma, PrismaClient } from "@calcom/prisma";
 import prisma from "@calcom/prisma";
-import { MembershipRole } from "@calcom/prisma/enums";
+import { MembershipRole, UserPermissionRole } from "@calcom/prisma/enums";
 
 export interface CreateTeamInput {
   userId: number;
@@ -72,7 +74,6 @@ export class TeamService {
       where,
       select: {
         role: true,
-        accepted: true,
         team: {
           select: {
             id: true,
@@ -84,11 +85,9 @@ export class TeamService {
             isOrganization: true,
             parentId: true,
             metadata: true,
-            members: {
+            _count: {
               select: {
-                userId: true,
-                role: true,
-                accepted: true,
+                members: true,
               },
             },
             eventTypes: {
@@ -113,8 +112,7 @@ export class TeamService {
     return memberships.map((m) => ({
       ...m.team,
       role: m.role,
-      memberCount: m.team.members.length,
-      members: m.team.members,
+      memberCount: m.team._count.members,
     }));
   }
 
@@ -131,6 +129,10 @@ export class TeamService {
       },
       select: { role: true, accepted: true },
     });
+
+    if (!membership?.accepted) {
+      throw ErrorWithCode.Factory.Forbidden("You do not have permission to view this team");
+    }
 
     const team = await this.db.team.findUnique({
       where: { id: params.teamId },
@@ -151,6 +153,7 @@ export class TeamService {
           },
         },
         eventTypes: {
+          where: { hidden: false },
           select: {
             id: true,
             title: true,
@@ -171,7 +174,7 @@ export class TeamService {
     });
 
     if (!team) {
-      throw new Error(`Team with ID ${params.teamId} not found`);
+      throw ErrorWithCode.Factory.NotFound(`Team with ID ${params.teamId} not found`);
     }
 
     return {
@@ -185,6 +188,38 @@ export class TeamService {
    * Create a new Team or Sub-Team
    */
   async createTeam(input: CreateTeamInput) {
+    if (input.parentId) {
+      const parentMembership = await this.db.membership.findUnique({
+        where: {
+          userId_teamId: {
+            userId: input.userId,
+            teamId: input.parentId,
+          },
+        },
+        select: { role: true, accepted: true },
+      });
+
+      if (
+        !parentMembership?.accepted ||
+        (parentMembership.role !== MembershipRole.OWNER && parentMembership.role !== MembershipRole.ADMIN)
+      ) {
+        throw ErrorWithCode.Factory.Forbidden(
+          "You must be an Owner or Admin of the parent team to create a sub-team."
+        );
+      }
+    }
+
+    if (input.isOrganization) {
+      const user = await this.db.user.findUnique({
+        where: { id: input.userId },
+        select: { role: true },
+      });
+
+      if (user?.role !== UserPermissionRole.ADMIN) {
+        throw ErrorWithCode.Factory.Forbidden("Only instance admins can create organizations.");
+      }
+    }
+
     const baseSlug = input.slug ? slugify(input.slug) : slugify(input.name);
     let uniqueSlug = baseSlug;
 
@@ -264,17 +299,19 @@ export class TeamService {
           teamId: input.teamId,
         },
       },
-      select: { role: true },
+      select: { role: true, accepted: true },
     });
 
     if (
-      !membership ||
+      !membership?.accepted ||
       (membership.role !== MembershipRole.OWNER && membership.role !== MembershipRole.ADMIN)
     ) {
-      throw new Error("Unauthorized: Only Team Owners or Admins can update team settings.");
+      throw ErrorWithCode.Factory.Forbidden(
+        "Unauthorized: Only Team Owners or Admins can update team settings."
+      );
     }
 
-    const data: Parameters<typeof this.db.team.update>[0]["data"] = {};
+    const data: Prisma.TeamUpdateArgs["data"] = {};
     if (input.name !== undefined) data.name = input.name;
     if (input.slug !== undefined) data.slug = slugify(input.slug);
     if (input.bio !== undefined) data.bio = input.bio;
@@ -310,11 +347,11 @@ export class TeamService {
           teamId: params.teamId,
         },
       },
-      select: { role: true },
+      select: { role: true, accepted: true },
     });
 
-    if (!membership || membership.role !== MembershipRole.OWNER) {
-      throw new Error("Unauthorized: Only Team Owners can delete this team.");
+    if (!membership?.accepted || membership.role !== MembershipRole.OWNER) {
+      throw ErrorWithCode.Factory.Forbidden("Unauthorized: Only Team Owners can delete this team.");
     }
 
     const deleted = await this.db.team.delete({
@@ -336,20 +373,27 @@ export class TeamService {
           teamId: input.teamId,
         },
       },
-      select: { role: true },
+      select: { role: true, accepted: true },
     });
 
     if (
-      !callerMembership ||
+      !callerMembership?.accepted ||
       (callerMembership.role !== MembershipRole.OWNER && callerMembership.role !== MembershipRole.ADMIN)
     ) {
-      throw new Error("Unauthorized: Only Team Owners or Admins can invite new members.");
+      throw ErrorWithCode.Factory.Forbidden(
+        "Unauthorized: Only Team Owners or Admins can invite new members."
+      );
     }
 
-    const targetUser = await this.db.user.findFirst({
-      where: {
-        email: { equals: input.email, mode: "insensitive" },
-      },
+    // Only Owners may grant elevated roles; Admins always invite as MEMBER
+    const role =
+      input.role && callerMembership.role === MembershipRole.OWNER ? input.role : MembershipRole.MEMBER;
+
+    // Emails are stored canonical-lowercase; use the unique index instead of an insensitive search
+    const email = input.email.toLowerCase().trim();
+
+    const targetUser = await this.db.user.findUnique({
+      where: { email },
       select: { id: true, username: true, email: true },
     });
 
@@ -364,29 +408,31 @@ export class TeamService {
       });
 
       if (existingMembership) {
-        throw new Error("User is already a member of this team.");
+        throw ErrorWithCode.Factory.BadRequest("User is already a member of this team.");
       }
 
-      const membership = await this.db.membership.create({
+      await this.db.membership.create({
         data: {
           userId: targetUser.id,
           teamId: input.teamId,
-          role: input.role || MembershipRole.MEMBER,
+          role,
           accepted: true,
-        },
-        select: {
-          role: true,
-          accepted: true,
-          user: {
-            select: { id: true, email: true, name: true },
-          },
         },
       });
-
-      return { status: "ADDED", membership };
+    } else {
+      // New user: persist an invitation so it survives beyond this request
+      await this.db.verificationToken.create({
+        data: {
+          identifier: email,
+          token: randomBytes(32).toString("hex"),
+          expires: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          teamId: input.teamId,
+        },
+      });
     }
 
-    return { status: "INVITED", email: input.email };
+    // Both branches return the same opaque result so the endpoint cannot enumerate which emails have accounts
+    return { status: "INVITED" };
   }
 
   /**
@@ -400,11 +446,35 @@ export class TeamService {
           teamId: input.teamId,
         },
       },
+      select: { role: true, accepted: true },
+    });
+
+    if (!callerMembership?.accepted || callerMembership.role !== MembershipRole.OWNER) {
+      throw ErrorWithCode.Factory.Forbidden("Unauthorized: Only Team Owners can change member roles.");
+    }
+
+    const targetMembership = await this.db.membership.findUnique({
+      where: {
+        userId_teamId: {
+          userId: input.targetUserId,
+          teamId: input.teamId,
+        },
+      },
       select: { role: true },
     });
 
-    if (!callerMembership || callerMembership.role !== MembershipRole.OWNER) {
-      throw new Error("Unauthorized: Only Team Owners can change member roles.");
+    if (!targetMembership) {
+      throw ErrorWithCode.Factory.NotFound("Membership not found");
+    }
+
+    if (targetMembership.role === MembershipRole.OWNER && input.role !== MembershipRole.OWNER) {
+      const ownerCount = await this.db.membership.count({
+        where: { teamId: input.teamId, role: MembershipRole.OWNER },
+      });
+
+      if (ownerCount <= 1) {
+        throw ErrorWithCode.Factory.BadRequest("Cannot demote the last owner of this team.");
+      }
     }
 
     const updated = await this.db.membership.update({
@@ -431,6 +501,20 @@ export class TeamService {
    * Remove member from team
    */
   async removeMember(input: RemoveMemberInput) {
+    const targetMembership = await this.db.membership.findUnique({
+      where: {
+        userId_teamId: {
+          userId: input.targetUserId,
+          teamId: input.teamId,
+        },
+      },
+      select: { role: true },
+    });
+
+    if (!targetMembership) {
+      throw ErrorWithCode.Factory.NotFound("Membership not found");
+    }
+
     const isSelf = input.userId === input.targetUserId;
 
     if (!isSelf) {
@@ -441,14 +525,30 @@ export class TeamService {
             teamId: input.teamId,
           },
         },
-        select: { role: true },
+        select: { role: true, accepted: true },
       });
 
       if (
-        !callerMembership ||
+        !callerMembership?.accepted ||
         (callerMembership.role !== MembershipRole.OWNER && callerMembership.role !== MembershipRole.ADMIN)
       ) {
-        throw new Error("Unauthorized: Only Team Owners or Admins can remove other members.");
+        throw ErrorWithCode.Factory.Forbidden(
+          "Unauthorized: Only Team Owners or Admins can remove other members."
+        );
+      }
+
+      if (callerMembership.role === MembershipRole.ADMIN && targetMembership.role === MembershipRole.OWNER) {
+        throw ErrorWithCode.Factory.Forbidden("Unauthorized: Only Team Owners can remove an Owner.");
+      }
+    }
+
+    if (targetMembership.role === MembershipRole.OWNER) {
+      const ownerCount = await this.db.membership.count({
+        where: { teamId: input.teamId, role: MembershipRole.OWNER },
+      });
+
+      if (ownerCount <= 1) {
+        throw ErrorWithCode.Factory.BadRequest("Cannot remove the last owner of this team.");
       }
     }
 

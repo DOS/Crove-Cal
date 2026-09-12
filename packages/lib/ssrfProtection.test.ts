@@ -177,19 +177,71 @@ describe("Self-hosted environment behavior", () => {
 
   afterEach(() => {
     vi.doUnmock("@calcom/lib/constants");
+    vi.doUnmock("node:dns/promises");
+    vi.unstubAllEnvs();
   });
 
-  it("allows private IPs for self-hosted (internal webhooks)", async () => {
+  it("blocks private IPs on self-hosted by default (same as cloud)", async () => {
     const { validateUrlForSSRFSync: validateSelfHosted } = await import("./ssrfProtection");
+    expect(validateSelfHosted("http://192.168.1.1/webhook")).toEqual({
+      isValid: false,
+      error: "Private IP address",
+    });
+    expect(validateSelfHosted("http://10.0.0.1/webhook").isValid).toBe(false);
+    expect(validateSelfHosted("http://172.16.0.1/webhook").isValid).toBe(false);
+  });
+
+  it("blocks localhost on self-hosted by default", async () => {
+    const { validateUrlForSSRFSync: validateSelfHosted } = await import("./ssrfProtection");
+    expect(validateSelfHosted("http://localhost:3000/webhook").isValid).toBe(false);
+    expect(validateSelfHosted("http://127.0.0.1:3000/webhook").isValid).toBe(false);
+  });
+
+  it("still allows public HTTP URLs on self-hosted", async () => {
+    const { validateUrlForSSRFSync: validateSelfHosted } = await import("./ssrfProtection");
+    expect(validateSelfHosted("http://example.com/webhook").isValid).toBe(true);
+    expect(validateSelfHosted("https://internal.example.com/webhook").isValid).toBe(true);
+  });
+
+  it("allows private targets when SSRF_ALLOW_PRIVATE_IPS=true", async () => {
+    vi.stubEnv("SSRF_ALLOW_PRIVATE_IPS", "true");
+    const { validateUrlForSSRFSync: validateSelfHosted } = await import("./ssrfProtection");
+    expect(validateSelfHosted("http://127.0.0.1/webhook").isValid).toBe(true);
     expect(validateSelfHosted("http://192.168.1.1/webhook").isValid).toBe(true);
-    expect(validateSelfHosted("http://10.0.0.1/webhook").isValid).toBe(true);
-    expect(validateSelfHosted("http://172.16.0.1/webhook").isValid).toBe(true);
+    expect(validateSelfHosted("http://internal-service.local/webhook").isValid).toBe(true);
+  });
+
+  it("still blocks cloud metadata endpoints when SSRF_ALLOW_PRIVATE_IPS=true", async () => {
+    vi.stubEnv("SSRF_ALLOW_PRIVATE_IPS", "true");
+    const { validateUrlForSSRFSync: validateSelfHosted } = await import("./ssrfProtection");
+    expect(validateSelfHosted("http://169.254.169.254/latest/meta-data/").isValid).toBe(false);
+    expect(validateSelfHosted("http://metadata.google.internal/computeMetadata/v1/").isValid).toBe(false);
+  });
+
+  it("skips the DNS private-IP check when SSRF_ALLOW_PRIVATE_IPS=true", async () => {
+    vi.doMock("node:dns/promises", () => ({
+      default: {
+        lookup: vi.fn().mockResolvedValue([{ address: "10.0.0.5", family: 4 }]),
+      },
+    }));
+    vi.stubEnv("SSRF_ALLOW_PRIVATE_IPS", "true");
+    const { validateUrlForSSRF: validateSelfHosted } = await import("./ssrfProtection");
+    expect((await validateSelfHosted("http://internal-service.local/webhook")).isValid).toBe(true);
+  });
+
+  it("rejects hostnames that resolve to private IPs on self-hosted (DNS rebinding protection)", async () => {
+    vi.doMock("node:dns/promises", () => ({
+      default: {
+        lookup: vi.fn().mockResolvedValue([{ address: "10.0.0.5", family: 4 }]),
+      },
+    }));
+    const { validateUrlForSSRF: validateSelfHosted } = await import("./ssrfProtection");
+    expect((await validateSelfHosted("http://internal-service.local/webhook")).isValid).toBe(false);
   });
 
   it("allows HTTP URLs for self-hosted", async () => {
     const { validateUrlForSSRFSync: validateSelfHosted } = await import("./ssrfProtection");
-    expect(validateSelfHosted("http://internal-service.local/webhook").isValid).toBe(true);
-    expect(validateSelfHosted("http://localhost:3000/webhook").isValid).toBe(true);
+    expect(validateSelfHosted("http://public-webhook.example.com/webhook").isValid).toBe(true);
   });
 
   it("still blocks cloud metadata endpoints even on self-hosted", async () => {

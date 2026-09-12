@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crove-Cal — Báo cáo Audit toàn bộ Repo — 2026-09-08</title>
+<style>
+  :root {
+    --bg: #f8fafc; --card: #ffffff; --ink: #0f172a; --muted: #64748b; --line: #e2e8f0;
+    --crit: #dc2626; --high: #ea580c; --med: #d97706; --low: #64748b;
+    --crit-bg: #fef2f2; --high-bg: #fff7ed; --med-bg: #fffbeb; --low-bg: #f8fafc;
+    --ok: #059669; --link: #2563eb; --chip: #f1f5f9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.55; }
+  header.top { position: sticky; top: 0; z-index: 50; background: #0f172a; color: #f8fafc; padding: 14px 24px; display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+  header.top h1 { font-size: 17px; margin: 0 12px 0 0; font-weight: 650; }
+  header.top .meta { color: #94a3b8; font-size: 12px; }
+  header.top .meta b { color: #e2e8f0; font-weight: 600; }
+  main { max-width: 1200px; margin: 0 auto; padding: 20px 24px 80px; }
+  h2 { font-size: 16px; margin: 34px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 14px; margin: 20px 0 8px; }
+  /* summary cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .num { font-size: 30px; font-weight: 700; line-height: 1.1; }
+  .card .lbl { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .card.crit .num { color: var(--crit); } .card.high .num { color: var(--high); }
+  .card.med .num { color: var(--med); }  .card.low .num { color: var(--low); }
+  .card.ok .num { color: var(--ok); }
+  /* controls */
+  .controls { position: sticky; top: 58px; z-index: 40; background: var(--bg); padding: 10px 0 12px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn { border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 5px 13px; font-size: 12.5px; cursor: pointer; color: var(--ink); }
+  .btn:hover { border-color: #94a3b8; }
+  .btn.on { background: #0f172a; color: #fff; border-color: #0f172a; }
+  input#q { flex: 1 1 220px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 13px; background: var(--card); }
+  .count { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  /* finding card */
+  .f { background: var(--card); border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; margin: 10px 0; overflow: hidden; }
+  .f.p0 { border-left-color: var(--crit); } .f.p1 { border-left-color: var(--high); }
+  .f.p2 { border-left-color: var(--med); } .f.p3 { border-left-color: var(--low); }
+  .f .head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; cursor: pointer; }
+  .f .head:hover { background: #f1f5f9; }
+  .f .title { flex: 1 1 400px; font-weight: 600; font-size: 13.5px; }
+  .f .body { display: none; padding: 4px 16px 14px; border-top: 1px dashed var(--line); }
+  .f.open .body { display: block; }
+  .f .body dl { display: grid; grid-template-columns: 92px 1fr; gap: 4px 12px; margin: 10px 0 0; }
+  .f dt { color: var(--muted); font-size: 12px; font-weight: 600; padding-top: 1px; }
+  .f dd { margin: 0; font-size: 13px; }
+  .badge { display: inline-block; border-radius: 6px; padding: 2px 9px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+  .b-crit { background: var(--crit-bg); color: var(--crit); border: 1px solid #fecaca; }
+  .b-high { background: var(--high-bg); color: var(--high); border: 1px solid #fed7aa; }
+  .b-med  { background: var(--med-bg);  color: var(--med);  border: 1px solid #fde68a; }
+  .b-low  { background: var(--low-bg);  color: var(--low);  border: 1px solid var(--line); }
+  .chip { display: inline-block; background: var(--chip); border-radius: 6px; padding: 2px 8px; font-size: 11px; color: #475569; border: 1px solid var(--line); }
+  .fid { font-family: Consolas, monospace; font-size: 12px; color: var(--muted); }
+  .verif { font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 8px; }
+  .v-yes { background: #ecfdf5; color: var(--ok); border: 1px solid #a7f3d0; }
+  .v-no  { background: var(--chip);  color: var(--muted); border: 1px solid var(--line); }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  .loc { font-family: Consolas, monospace; font-size: 12px; color: #334155; word-break: break-all; }
+  table.small { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 8px 0; }
+  table.small th, table.small td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  table.small th { background: var(--chip); font-size: 12px; }
+  .actlist { counter-reset: act; padding-left: 0; list-style: none; }
+  .actlist li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px 10px 52px; margin: 8px 0; position: relative; }
+  .actlist li::before { counter-increment: act; content: counter(act); position: absolute; left: 12px; top: 10px; width: 28px; height: 28px; border-radius: 50%; background: #0f172a; color: #fff; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+  .actlist .refs { color: var(--muted); font-size: 11.5px; display: block; margin-top: 3px; }
+  .note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 12px 16px; font-size: 13px; }
+  .clean { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
+  .clean div { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 10px 14px; font-size: 12.5px; }
+  footer { color: var(--muted); font-size: 12px; padding: 24px; text-align: center; }
+  @media print { header.top, .controls { position: static; } .f .body { display: block !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Crove-Cal — Báo cáo Audit toàn bộ Repo</h1>
+  <span class="meta">Ngày: <b>2026-09-08</b> &nbsp;·&nbsp; Commit: <b>7782de6b7a (dev)</b> &nbsp;·&nbsp; Phạm vi: <b>~115 packages (upstream + 73 commit fork)</b> &nbsp;·&nbsp; Phương pháp: <b>6 hướng audit song song, chỉ đọc</b> &nbsp;·&nbsp; <b id="hdrCount"></b></span>
+</header>
+
+<main>
+  <div class="note">
+    <b>Cách đọc:</b> mỗi phát hiện có <b>ID</b> (CR/HI/MD/LO-##), <b>Priority</b> (mức độ rủi ro), <b>Action order</b> (thứ tự khắc phục khuyến nghị — mục "Kế hoạch khắc phục"). Cột <b>Verified</b> = đã được xác minh độc lập bằng đọc code trực tiếp (không phải chỉ kết quả agent).
+    <b>Không có giá trị secret nào được in trong file này</b> — mọi secret chỉ được tham chiếu theo <code>file:line</code>.
+  </div>
+
+  <h2>Trạng thái xử lý — cập nhật sau Round 1 + Dependabot (cùng ngày)</h2>
+  <table class="small">
+    <thead><tr><th>Trạng thái</th><th>Phạm vi</th><th>Ghi chú</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-crit">ĐÃ FIX</span></td><td>Fork security &amp; correctness</td><td>CR-01…CR-06, HI-01, HI-04…HI-07, HI-15, HI-17…HI-20, MD-02/04/07/08/09/13/14/15/23/24/25/26, LO-12 — các commit trên <code>dev</code>, verify 72/72 vitest + tsc sạch + biome lint 0 error</td></tr>
+      <tr><td><span class="badge b-crit">ĐÃ FIX</span></td><td>Dependabot</td><td>CR-07 (next-auth 4.24.15), HI-11 phần resolutions + tar/websocket-driver, next 16.2.11, dependabot.yml — yarn install exit 0, tsc apps/web sạch</td></tr>
+      <tr><td><span class="badge b-crit">ĐÃ FIX</span></td><td>HI-08, MD-01</td><td>TLS mặc định verify-on (opt-out qua DATABASE_SSL_REJECT_UNAUTHORIZED=false) + sửa pool leak api/v2 + gate session/ADMIN cho /api/webhooks/health — 5/5 test pass</td></tr>
+      <tr><td><span class="badge b-crit">ĐÃ FIX (Round 3)</span></td><td>HI-06, HI-11, HI-14, HI-02/03, HI-21, HI-22, MD-10/11/12, MD-13/14/15, MD-01</td><td>Cron auth timing-safe fail-closed (7 routes); reminder re-check booking + cancel stale reminders; rate limit 6 auth mutations + HSTS/CSP headers; MCP tenant scoping + fromReschedule + conflict guard; SSRF self-hosted + opt-out; video token fail-closed; timing-safe webhook compares</td></tr>
+      <tr><td><span class="badge b-med">CHỜ QUYẾT ĐỊNH</span></td><td>HI-13, HI-14</td><td>61 migrations cần biết DB prod dùng schema nào; wire workflows dispatcher là quyết định feature. Khi deploy: rotate secret Supabase + env mới (CRON_SECRET, OIDC_*, BREVO/CROVE/DOS_SYNC_WEBHOOK_SECRET, DATABASE_SSL_REJECT_UNAUTHORIZED=false nếu pooler cần) + prisma migrate deploy</td></tr>
+      <tr><td><span class="badge b-low">CÒN LẠI (TAIL)</span></td><td>Docker/CI + cosmetic</td><td>CR-08, HI-09/10/12 (Docker hardening + re-enable CI/crons), HI-16 (branding), MD-03 (PBAC stub), MD-05/06 (data perf), MD-16…22 (frontend perf), MD-27…32, LO-01…11/13/15</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Tổng quan</h2>
+  <div class="cards">
+    <div class="card crit"><div class="num" id="nCrit">0</div><div class="lbl">Critical</div></div>
+    <div class="card high"><div class="num" id="nHigh">0</div><div class="lbl">High</div></div>
+    <div class="card med"><div class="num" id="nMed">0</div><div class="lbl">Medium</div></div>
+    <div class="card low"><div class="num" id="nLow">0</div><div class="lbl">Low</div></div>
+    <div class="card ok"><div class="num" id="nVerif">0</div><div class="lbl">Đã verify độc lập</div></div>
+  </div>
+  <table class="small" id="catTable">
+    <thead><tr><th>Nhóm</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Kế hoạch khắc phục (thứ tự khuyến nghị)</h2>
+  <ol class="actlist">
+    <li><b>Rotate OIDC client secret trên Supabase dashboard NGAY</b> — việc duy nhất thực sự khắc phục C-01; secret nằm vĩnh viễn trong git history của repo public. Xoá code / rewrite history không cứu được.
+      <span class="refs">Liên quan: CR-01</span></li>
+    <li>Bỏ mọi secret fallback (OIDC, video-token) + fail startup khi thiếu env + gate đăng ký DosIdProvider theo cấu hình thật + đổi <code>emailVerified ?? true</code>.
+      <span class="refs">CR-01, HI-22, HI-01</span></li>
+    <li>Tạo migration tái tạo bảng Workflow (hiện <code>/workflows</code> là trang 500 trên DB đã deploy).
+      <span class="refs">CR-03</span></li>
+    <li>Sửa authorization Workflows: membership check bắt buộc, validate <code>activeOn</code>, bọc update trong transaction.
+      <span class="refs">CR-02, HI-15</span></li>
+    <li>HMAC fail-closed + zod cap + rate limit cho webhook Brevo / Crove CRM; báo success đúng thực tế.
+      <span class="refs">CR-04, HI-18</span></li>
+    <li>Bỏ <code>unstable_cache</code> sai key ở <code>/event-types/[type]</code> + bỏ hardcode permissions.
+      <span class="refs">CR-05</span></li>
+    <li>Fix TS2305: restore <code>permissions.ts</code> về nội dung upstream + <code>turbo.json</code> <code>post-install.dependsOn: ["^post-install"]</code>.
+      <span class="refs">CR-06</span></li>
+    <li>Khôi phục TLS verification cho Postgres (CA Supabase, opt-in env) + sửa connection leak api/v2.
+      <span class="refs">HI-08</span></li>
+    <li>Bump dependencies: resolutions pins lên bản vá, next-auth 4.24.15, tar 7.5.21, websocket-driver 0.7.5, next 16.2.11; thêm dependabot.yml.
+      <span class="refs">CR-07, HI-11</span></li>
+    <li>Khôi phục CI của fork (type-check/lint/tests/security) + gate deploy-docker sau CI + kích hoạt lại cron + hardening Docker (USER, .dockerignore, bỏ ARG =secret).
+      <span class="refs">HI-09, HI-10, HI-12, HI-20, CR-08</span></li>
+    <li>dos-org-sync: dedicated secret, replay window ±300s, dedupe delivery id, scope <code>team.deleted</code> theo org.
+      <span class="refs">HI-01</span></li>
+    <li>Gate <code>teams.get/organizations.get</code> theo membership; guard <code>viewer.teams.create</code>; sửa privilege-escalation ADMIN/OWNER; role check đọc <code>accepted</code>; invite thật thay vì no-op.
+      <span class="refs">HI-04, HI-05, HI-06</span></li>
+    <li>MCP server: principal + tenant scoping mọi <code>where</code>; route booking qua pipeline; sửa <code>fromReschedule</code>; bỏ fallback "first available user"; thêm type-check script.
+      <span class="refs">HI-02, HI-03, HI-20</span></li>
+    <li>Giảm diverge upstream: revert branding fallback trong <code>constants.ts</code> + fix hoặc xoá <code>patch:branding</code>; revert 61 migrations, chuyển sang <code>search_path</code> ở role; sửa JWT update callback (không nhận email từ client).
+      <span class="refs">HI-16, HI-13, HI-07</span></li>
+    <li>Vệ sinh: 13 bare throw → <code>ErrorWithCode</code>; thêm i18n keys + bọc ~200 string hardcode; <code>as any</code> metadata; barrels chết; duplicate hitpay; confirmation dialog khi xoá workflow.
+      <span class="refs">HI-17, HI-19, MD-23, LO-01, LO-02, MD-22</span></li>
+  </ol>
+
+  <h2>Vùng đã kiểm tra và sạch (không cần re-audit)</h2>
+  <div class="clean">
+    <div><b>credential.key không lộ ra client</b> — quét toàn bộ select/tRPC/serializer; <code>safeCredentialSelect</code> có comment đúng mục đích. Over-fetch duy nhất trong bookingsProcedure middleware không tới response (MD-34).</div>
+    <div><b>Không SQL injection</b> — 38 site <code>$queryRaw</code> toàn tagged-template parameterized; zero <code>$queryRawUnsafe/$executeRawUnsafe</code>.</div>
+    <div><b>Không barrel-import violation trong code fork</b>; booking flow upstream không bị fork đụng (packages/features/bookings không đổi).</div>
+    <div><b>OAuth client management (platform) đúng</b> — secret SHA-256, redirect URI so exact, PKCE S256 bắt buộc cho PUBLIC client, code 40 random bytes.</div>
+    <div><b>authorizeCredentials + deleteMe sound</b> — lock check, băm email rate-limit, backup codes consumed, ADMIN thiếu 2FA bị downgrade.</div>
+    <div><b>dos-org-sync verification logic đúng</b> (timingSafeEqual, fail-closed, chạy trước JSON.parse) — lỗi nằm ở key selection (HI-01).</div>
+    <div><b>Generated files đúng app-store-cli output</b> (8 thêm / 0 xoá, đúng thứ tự alphabet); api/v2 import rule sạch cho code fork.</div>
+    <div><b>Placement đúng chuẩn</b> — business logic trong Service (không Repository), permission check trong page.tsx (không layout.tsx), không dayjs misuse trong code fork.</div>
+    <div><b>TS6 decorators an toàn</b> — useDefineForClassFields được set đúng nơi cần; NestJS DTO emission còn nguyên.</div>
+    <div><b>Test breadth tốt hơn kỳ vọng</b> — mọi feature fork đều có test; WorkflowService.test assert timestamp tính thật (không mock-only).</div>
+  </div>
+
+  <h2>Danh sách phát hiện</h2>
+  <div class="controls">
+    <button class="btn on" data-p="all">Tất cả</button>
+    <button class="btn" data-p="0">Critical</button>
+    <button class="btn" data-p="1">High</button>
+    <button class="btn" data-p="2">Medium</button>
+    <button class="btn" data-p="3">Low</button>
+    <button class="btn" data-v="1" id="btnVerif">Chỉ đã verify ✓</button>
+    <input id="q" type="search" placeholder="Tìm theo ID, file, từ khoá… (ví dụ: webhook, workflow, docker, TLS)">
+    <span class="count" id="count"></span>
+  </div>
+  <div id="list"></div>
+</main>
+
+<footer>
+  Tạo bởi 6 audit agent song song + verify độc lập thủ công · Crove-Cal (fork của calcom/cal.diy) · 2026-09-08 · Chỉ báo cáo, không thay đổi code.
+</footer>
+
+<script>
+"use strict";
+// pri: 0=Critical 1=High 2=Medium 3=Low ; origin: fork|upstream|mixed ; ver: 1=đã verify độc lập
+const FINDINGS = [
+// ============ CRITICAL ============
+{id:"CR-01",pri:0,cat:"Auth & Access Control",title:"OAuth client secret Supabase hardcode trong repo public; provider đăng ký vô điều kiện — bake vào production image",loc:"packages/features/auth/lib/next-auth-options.ts:322-327 (provider :388, linking :349, emailVerified :373)",origin:"fork",ver:1,
+ impact:"Chuỗi fallback cuối của oidcClientSecret là secret thật (43 ký tự, không phải placeholder), commit 6ba7227909. Repo public → secret vĩnh viễn trong git history. DosIdProvider() đăng ký VÔ ĐIỀU KIỆN (Google/Outlook đều có gate) nên /api/auth/signin/dos-id + callback sống trên mọi deployment kể cả chưa cấu hình, chạy trên credential fallback; deploy-docker.yml còn bake NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED=true. allowDangerousEmailAccountLinking:true + emailVerified: profile.email_verified ?? true (mặc định verified khi IdP không trả) → có thể link vào tài khoản Cal có sẵn theo email. docs/Architecture.md:154 khẳng định secret nằm trong GCP Secret Manager — code phủ nhận.",
+ fix:"ROTATE secret trên Supabase (duy nhất khắc phục). Bỏ literal fallback, fail startup khi thiếu env. Gate provider: if (OIDC_CLIENT_ID && OIDC_CLIENT_SECRET). Đổi ?? true thành unverified. Thêm gitleaks hook.",conf:"high",act:1,src:"A1#12, A2#5, A6#1"},
+{id:"CR-02",pri:0,cat:"Auth & Access Control",title:"Workflows: cross-tenant read/overwrite/delete bằng teamId client tự khai (IDOR)",loc:"packages/features/workflows/lib/WorkflowService.ts:49,75,131,179,186,243; trpc viewer/workflows/_router.tsx:60-115",origin:"fork",ver:1,
+ impact:"3 agent độc lập hội tụ cùng phát hiện, cùng số dòng. where = teamId ? {id, teamId} : {id, userId} — userId bị BỎ khi có teamId; teamId là input schema; mọi procedure authedProcedure thuần, không có membership lookup. Attacker free account enumerate teamId tuần tự → list/get/update/delete/duplicate xuyên tenant: đọc steps[].sendTo (SĐT/email nạn nhân), ghi đè template SMS/email, delete qua deleteMany + workflow.delete.",
+ fix:"Predicate conjunctive: { id, teamId, team: { members: { some: { userId, accepted: true } } } }; membership OWNER/ADMIN trước write; push scoping vào mutation thay vì rely on prior read.",conf:"high",act:4,src:"A1#1, A2#9, A3#2"},
+{id:"CR-03",pri:0,cat:"Data & Prisma",title:"Bảng Workflow đã bị DROP khỏi DB — /workflows là trang 500 trên mọi DB đã deploy",loc:"packages/prisma/schema.prisma:2890-2957 vs migrations/20260319000000_drop_workflow_tables/migration.sql; scripts/start.sh:11",origin:"fork",ver:1,
+ impact:"Migration drop là MỚI NHẤT trong cây (drop CASCADE 8 bảng + 7 enum); commit f508fb9a32 thêm 4 model vào schema nhưng KHÔNG kèm migration tạo lại. Entrypoint chạy prisma migrate deploy → DB không có bảng, prisma.workflow.* → P2021. Trang /workflows được link từ Navigation. CI không bắt được vì WorkflowService.test.ts mock Prisma bằng object tay.",
+ fix:"yarn prisma migrate dev --name readd_workflows; commit migration thật (4 bảng + 4 enum + back-relations). Không dùng db push để né.",conf:"high",act:3,src:"A3#1"},
+{id:"CR-04",pri:0,cat:"Webhooks & Integrations",title:"Hai webhook fork KHÔNG auth: Brevo + Crove CRM — ghi xuyên tenant vào CRM + amplification DoS",loc:"apps/web/app/api/webhooks/brevo/route.ts:19; apps/web/app/api/webhooks/crove-crm/route.ts:19",origin:"fork",ver:1,
+ impact:"Không HMAC/session/rate limit; x-cal-signature-256 chỉ nằm trong CORS allow-headers, KHÔNG bao giờ được verify. Brevo: attendees không cap, mỗi attendee 2 fetch tuần tự → 1 request 50k attendee treo worker + đốt Brevo quota; attacker ghi contact/attribute bất kỳ và trigger Brevo workflow gửi email/SMS tới địa chỉ tùy chọn. Crove CRM: organizationId/teamId/organizer.email tự khai → cross-tenant record injection, echo contactId/activityId. Cả hai echo raw error, Access-Control-Allow-Origin:*. Test của fork khẳng định hành vi unauth là có chủ đích.",
+ fix:"HMAC-SHA256 over await req.text() bằng timingSafeEqual với dedicated secret, fail-closed khi unset; zod .max(50) attendees + validate email; rate limit; generic error; bỏ CORS *.",conf:"high",act:5,src:"A2#1, A2#2, A5#9"},
+{id:"CR-05",pri:0,cat:"Frontend & UX",title:"unstable_cache xuyên user ở /event-types/[type] — cache key không phân biệt người dùng",loc:"apps/web/app/(use-page-wrapper)/event-types/[type]/page.tsx:32-37,56,60-62; actions.ts:5-7",origin:"upstream (fork đã fix 2 siblings nhưng bỏ sót trang này)",ver:1,
+ impact:"unstable_cache nhận (eventTypeId, headers, cookies), revalidate 3600, KHÔNG tags. Verified trên Next 16.2.3: JSON.stringify(headers)→\"{}\" và cookies→constant → cache key HẰNG SỐ mọi user. User B (kể cả không membership) nhận payload user A trong 1 giờ; authorization tRPC bên trong KHÔNG chạy; page hardcode permissions all-true. revalidatePath không purge được entry không-tag → save không refresh trang này.",
+ fix:"Áp đúng pattern commit a61bc23d73 (drop cache, gọi caller trực tiếp) hoặc key theo scalar userId + tags:[\"viewer.eventTypes.get\"]; bỏ hardcode permissions.",conf:"high",act:6,src:"A4#1"},
+{id:"CR-06",pri:0,cat:"Build & CI/CD",title:"TS2305 là RACE — turbo chạy post-install song song không thứ tự; chặn yarn install ở mọi máy",loc:"turbo.json:531-537; packages/platform/types/permissions.ts:1; packages/tsconfig/base.json:15; platform/types/package.json:5",origin:"fork (trigger) + upstream (race)",ver:1,
+ impact:"dependsOn:[] rỗng → turbo chạy build mọi workspace SONG SONG không topological order; platform-types#build rimraf dist/ trước; skipLibCheck át TS2307 trong .d.ts → lỗi nổi 1 hop xa thành TS2305 tại platform-utils. Verified: platform-constants CÓ export PLATFORM_PERMISSION, chuỗi re-export fork hợp lệ — lỗi chỉ khi constants chưa build xong. Chặn yarn install cho mọi dev + CI runner.",
+ fix:"(a) Restore permissions.ts về nội dung upstream (an toàn, giảm diverge, không phá fix cycle types→enums ở enums package); (b) turbo.json \"post-install\": {\"dependsOn\":[\"^post-install\"],\"cache\":false}; (c) \"types\": \"./dist/index.d.ts\".",conf:"high",act:7,src:"A5#1"},
+{id:"CR-07",pri:0,cat:"Dependencies",title:"next-auth@4.24.13 — Critical CVE auth bypass qua homoglyph @",loc:"yarn.lock:31801; apps/web/package.json; packages/features/auth/package.json",origin:"upstream",ver:1,
+ impact:"CVE-2026-73420 / GHSA-7rqj-j65f-68wh: email normalizer validate TRƯỚC Unicode normalization → homoglyph @ bypass → account confusion / auth bypass. next-auth là authentication layer của toàn app — runtime, served. Vulnerable >=4.10.3 <4.24.15. Verified qua Dependabot API (alert #83/#133/#394).",
+ fix:"Bump 4.24.15 (drop-in, cùng minor).",conf:"high",act:9,src:"A6#2"},
+{id:"CR-08",pri:0,cat:"Container & Infra",title:"NEXTAUTH_SECRET=secret / CALENDSO_ENCRYPTION_KEY=secret bake thành ARG defaults + .env.example ship giá trị thật",loc:"Dockerfile:11-12; docker-compose.yml:31-32; apps/api/v2/.env.example:14,18,26,28",origin:"upstream",ver:1,
+ impact:"Deployer chạy image không set runtime NEXTAUTH_SECRET → ký session JWT bằng literal public → forge session. CALENDSO_ENCRYPTION_KEY là key mã hoá mọi Credential.key (OAuth tokens). .env.example apps/api/v2 ship base64 32-byte cụ thể → \"copy example\" chạy với key public. CRON_API_KEY trong .env.example:67 là 32-hex thật — auth duy nhất của 7 route /api/cron/*.",
+ fix:"Bỏ \"=secret\" defaults (build fail loudly); .env.example thay <generate-me>; rotate mọi deployment từng dùng giá trị đó.",conf:"high",act:10,src:"A6#5, A6#11"},
+
+// ============ HIGH ============
+{id:"HI-01",pri:1,cat:"Webhooks & Integrations",title:"dos-org-sync: HMAC key trùng OIDC client secret + không chống replay + team.deleted thiếu scope org",loc:"apps/web/app/api/webhooks/dos-org-sync/route.ts:87,36,56,454-464",origin:"fork",ver:0,
+ impact:"secret = DOS_SYNC_WEBHOOK_SECRET || OIDC_CLIENT_SECRET → key webhook trùng OAuth client secret đã public trong repo (verification logic thì đúng: timingSafeEqual, fail-closed, chạy trước JSON.parse). timestamp/x-dos-timestamp được KHAI nhưng không bao giờ đọc → captured request replay vô hạn (khôi phục leaver thành OWNER accepted:true). team.deleted: deleteMany chỉ theo metadata.dosTeamId KHÔNG kèm org → 1 POST có thể xóa team của org khác, cascade Membership/EventType/Booking. member_added: 6 writes tuần tự không transaction.",
+ fix:"Dedicated DOS_SYNC_WEBHOOK_SECRET (bỏ fallback); window ±300s; persist x-dos-delivery dedupe; scope deleteMany theo parent org; soft-delete cho organization.deleted; $transaction cho member_added.",conf:"high",act:11,src:"A2#4, A3#3, A1#6"},
+{id:"HI-02",pri:1,cat:"Auth & Access Control",title:"MCP server: no auth, no tenant scoping — mọi caller đọc/ghi/xoá mọi tenant",loc:"packages/mcp-server/src/index.ts:8-13; src/server.ts:22-25; src/tools/eventTypes.ts:239,199; users.ts:28; bookings.ts:141,196",origin:"fork",ver:0,
+ impact:"13 tools đăng ký vô điều kiện, import @calcom/prisma trực tiếp — bypass mọi tRPC/API-v2 authorization. deleteEventType/updateEventType chỉ findUnique tồn tại rồi delete/update; getUserProfile trả email/timeZone/team roles của user bất kỳ theo numeric id; reschedule/cancel booking người khác theo uid (rescheduledBy/cancelledBy do caller khai). Prompt-injection tới agent có MCP connected = full cross-tenant access.",
+ fix:"Require principal (API key/OAuth client) tại server construction → resolve userId/teamId; thêm tenant predicate vào MỌI where; từ chối fallback; nếu single-operator-only thì document + read-only DB role + tool allowlist.",conf:"high",act:13,src:"A2#6"},
+{id:"HI-03",pri:1,cat:"Data & Prisma",title:"MCP createBooking bypass booking pipeline + fromReschedule ghi TIMESTAMP vào field UID + slots tool sai availability",loc:"packages/mcp-server/src/tools/bookings.ts:14-80,178; slots.ts:31-107",origin:"fork",ver:0,
+ impact:"createBookingHandler ghi prisma.booking.create trực tiếp: KHÔNG availability/conflict check (double-book host), không calendar event, không email, không webhook, status ACCEPTED hardcode (kể cả event type cần confirmation/payment). reschedule:178 ghi toISOString() vào fromReschedule — schema là booking UID → đứt findPreviousBooking/audit/no-show chain, index fromReschedule ô nhiễm. slots: hardcode 09:00-17:00 UTC, chỉ tính Booking theo eventTypeId, bỏ Schedule/Availability/OutOfOffice → trả slot ĐÃ BẬN là trống; findFirst({slug}) không filter team → nhặt event type của team khác.",
+ fix:"Route qua booking service; fromReschedule = original uid + tạo booking mới; slots: bound range ≤60 ngày, union busy sources, resolve slug kèm teamId bắt buộc.",conf:"high",act:13,src:"A5#11, A3#16"},
+{id:"HI-04",pri:1,cat:"Auth & Access Control",title:"viewer.teams.get / organizations.get: member roster + email + hidden event types của MỌI tenant",loc:"packages/features/teams/TeamService.ts:120-181; packages/features/organizations/OrganizationService.ts:106-163",origin:"fork",ver:0,
+ impact:"3 agent hội tụ. Membership lookup rồi chỉ DECORATE (userRole: membership?.role || null) thay vì enforce — không throw khi null. include members.user.{id,name,username,email,avatarUrl} + eventTypes KHÔNG filter hidden. Loop teamId 1..N → thu hoạch email/username/hidden event types mọi thành viên mọi team/org trên instance, kèm Team.metadata (leak mapping dosOrgId↔tenant). Đây là discovery primitive cho CR-02/HI-05.",
+ fix:"if (!membership?.accepted) throw ErrorWithCode Forbidden TRƯỚC fetch; select thay include; eventTypes where hidden:false.",conf:"high",act:12,src:"A1#3, A3#4, A5#10"},
+{id:"HI-05",pri:1,cat:"Auth & Access Control",title:"viewer.teams.create zero authorization — tự tạo Organization / graft child team vào org người khác",loc:"packages/features/teams/TeamService.ts:187-206; teams/_router.tsx:78-88",origin:"fork",ver:0,
+ impact:"Mutating method DUY NHẤT trong class không có guard. parentId + isOrganization client tự khai → free account tự thành org owner + mint Profile cho mình, hoặc graft team vào parentId của org mình KHÔNG thuộc (team xuất hiện trong children[] của nạn nhân, host team event types dưới namespace của org nạn nhân). Bypass đúng guard mà OrganizationService.createTeamUnderOrg:207 có sẵn.",
+ fix:"parentId set → require OWNER/ADMIN trên parent (reuse guard createTeamUnderOrg); isOrganization → authedAdminProcedure hoặc bỏ khỏi client schema.",conf:"high",act:12,src:"A1#5"},
+{id:"HI-06",pri:1,cat:"Auth & Access Control",title:"Privilege escalation nội team: ADMIN đuổi OWNER + tự gán OWNER; 7 role check bỏ accepted; last-owner không guard; inviteMember là no-op ảo",loc:"packages/features/teams/TeamService.ts:331-393,395-470,262-318; organizations/OrganizationService.ts:168-223",origin:"fork",ver:0,
+ impact:"removeMember cho ADMIN xóa membership của OWNER (không role-hierarchy); inviteMember nhận role client tự khai, email trùng user → tạo ngay accepted:true KHÔNG invite token KHÔNG consent → 2 bước route vòng qua changeMemberRole (OWNER-only). 7 role check select {role} không đọc accepted → người CHƯA accept exercise admin/org update/delete. removeMember không guard last-OWNER → team mồ côi vĩnh viễn (không ai update/delete được). inviteMember email không tồn tại trả {status:\"INVITED\"} mà KHÔNG tạo token/không gửi email (sendEmail field declared never read) — invite ảo không thể phát hiện. ADDED vs INVITED → user-enumeration oracle.",
+ fix:"ADMIN không đụng OWNER; clamp role MEMBER trừ khi caller OWNER; assertTeamRole helper requireAccepted:true dùng ở cả 7 chỗ; guard last-OWNER; persist VerificationToken invite thật; trả opaque status cho cả 2 branch.",conf:"high",act:12,src:"A1#8, A1#9, A3#23, A3#24, A5#22"},
+{id:"HI-07",pri:1,cat:"Auth & Access Control",title:"JWT update callback (fork-added): client-supplied session.email ghi org/role NẠN NHÂN vào token kẻ tấn công + throw hỏng session org-switcher",loc:"packages/features/auth/lib/next-auth-options.ts:592-600, 505-580",origin:"fork (commit a61bc23d73)",ver:0,
+ impact:"POST /api/auth/session với {email: ceo@victimcorp.com} → autoMergeIdentities lookup THEO EMAIL nạn nhân → spread org {id,slug,role: OWNER của nạn nhân} + upId/profileId/orgAwareUsername vào token kẻ tấn công (global role/sub sống sót nên authedAdminProcedure chưa bypass; tRPC tự phòng qua findByUserIdAndProfileId). Song song: autoMergeIdentities THROW khi thiếu profile → org switcher hỏng session, user bị đá về login vô hạn; ProfileDropdown không .catch().",
+ fix:"Restore upstream behaviour (return field overrides, KHÔNG gọi autoMergeIdentities); nếu cần re-resolve thì derive từ token.sub KHÔNG từ session.email; non-fatal trên update path; ProfileDropdown .catch() + toast.",conf:"high",act:14,src:"A1#10, A4#2"},
+{id:"HI-08",pri:1,cat:"Container & Infra",title:"TLS verification tắt VÔ ĐIỀU KIỆN trên 5 Pool sites + connection leak api/v2 + getSchemaFromUrl copy 3 bản",loc:"packages/prisma/index.ts:29-42,83-86; apps/api/v2/src/modules/prisma/prisma-read.service.ts:66-80; prisma-write.service.ts:60-85",origin:"fork (commit a439f8c113)",ver:0,
+ impact:"rejectUnauthorized:false hardcoded mọi env (4 agent hội tụ) → MITM path-to-Supabase đọc/ghi toàn bộ SQL stream: Credential.key, password hash, twoFactorSecret. Non-pool branch tạo new Pool local KHÔNG gán this.pool → onModuleDestroy không .end() → leak tối đa 5 conn/lần deploy, gây kiệt Supabase connection cap. getSchemaFromUrl copy 3 bản verbatim (1 bản decode percent-encoding, 2 bản không —行为 lệch nhau). USE_POOL mất nghĩa ban đầu (chọn max 5 vs 10 thay vì bật/tắt pool).",
+ fix:"ssl opt-in: env DATABASE_SSL_REJECT_UNAUTHORIZED / DATABASE_SSL_CA_PATH (CA Supabase) mặc định verify-on; gán pool cho this.pool; restore USE_POOL semantics; hoist getSchemaFromUrl 1 module.",conf:"high",act:8,src:"A1#14, A3#14, A5#14, A6#9"},
+{id:"HI-09",pri:1,cat:"Build & CI/CD",title:"CI verification tắt HOÀN TOÀN trên fork; deploy-docker publish untested :latest lên GHCR mỗi push",loc:".github/workflows/all-checks.yml:14-91; pr.yml:26; deploy-docker.yml",origin:"fork (commits c99bbf7e18, 21f1b2a790, eaae10b271)",ver:1,
+ impact:"Verified qua GitHub API: 40 workflow run gần nhất có 0 type-check/lint/test/security-audit (chỉ PR-title lint). deploy-docker.yml on push [dev, main] KHÔNG needs → build + push :latest lên GHCR MỖI PUSH. Code untested, unaudited trở thành production image chạy cal.crove.com. Không có dependabot.yml.",
+ fix:"Guard jobs cần thiết thành github.repository == 'DOS/Crove-Cal' hoặc tạo fork-owned CI workflow; deploy-docker needs CI success; branch protection + status checks.",conf:"high",act:10,src:"A6#8"},
+{id:"HI-10",pri:1,cat:"Build & CI/CD",title:"11 cron workflows âm thầm CHẾT trên fork — reminders, webhook triggers, app-meta sync không bao giờ chạy",loc:".github/workflows/cron-*.yml (11 files)",origin:"fork (guard)",ver:1,
+ impact:"Verified: mọi cron run gần nhất đều skipped. Booking reminders, email/SMS/WhatsApp reminders, timezone changes, webhook scheduled-triggers, app-meta sync KHÔNG BAO GIỜ chạy cho cal.crove.com. WebhookScheduledTriggers tích lũy vô hạn (liên kết MD-06) vì cron-webhooks-triggers disabled.",
+ fix:"Re-enable crons cần thiết (secrets riêng cho fork) hoặc schedule out-of-band; không để silently skipped.",conf:"high",act:10,src:"A6#12"},
+{id:"HI-11",pri:1,cat:"Dependencies",title:"Dependabot 448 (5 critical) + resolutions pins khoá ~140 alert DƯỚI bản vá + next@16.2.3 mang 11 high CVEs",loc:"package.json resolutions:149-214; yarn.lock; apps/web/package.json:110",origin:"upstream",ver:1,
+ impact:"Verified khớp GitHub API chính xác: 5 critical (next-auth ×3 manifests, tar, websocket-driver), 173 high, 224 moderate, 46 low. next@16.2.3 (~56/173 high) là framework SERVED cal.crove.com. tar@7.5.11 bị resolutions FORCED — và vì turbo prune bị bỏ, tar NAY NẰM TRONG production image. websocket-driver@0.7.4 runtime qua salesforce→jsforce→faye. Resolutions pin axios(56 alerts)/hono(22)/vite(12)/protobufjs(11)/xmldom(10)/brace-expansion(8)... DƯỚI patch → yarn update + Dependabot không bao giờ fix được, alert mở lại mãi mãi. 4 low alert (dompurify, @ai-sdk/provider-utils) chưa có patched version.",
+ fix:"Bump resolutions lên patched (axios 1.16.0, hono 4.12.25, vite 6.4.3, protobufjs 7.5.6, xmldom, brace-expansion 2.1.4/5.0.9, tar 7.5.21); next 16.2.11 / 15.5.21; websocket-driver 0.7.5; thêm dependabot.yml grouped security updates.",conf:"high",act:9,src:"A6#1-7, A6#26"},
+{id:"HI-12",pri:1,cat:"Container & Infra",title:"Docker hardening: chạy root; .dockerignore thiếu .env + COPY . .; Prisma Studio unauth :5555; cache mode=max export builder stage; image chứa full monorepo + dev deps",loc:"Dockerfile:56-63,90-101; apps/api/v2/Dockerfile:11; .dockerignore; docker-compose.yml:101-112; deploy-docker.yml:36,46,48",origin:"mixed",ver:0,
+ impact:"Container chạy root (no USER) — container escape/RCE → root. Root .dockerignore excludes .git/.github/node_modules/.next/docs nhưng KHÔNG .env/*.pem/*.key/.husky → .env local vào image layer; api/v2 COPY . . với context root; apps/api/v2/.dockerignore không honored (Docker chỉ đọc .dockerignore ở context root). turbo prune bị bỏ (commit 5f85f6026a) → image chứa toàn monorepo + dev deps (tar, trigger.dev, playwright, vitest, test fixtures). compose expose Prisma Studio unauth :5555 full DB creds. deploy-docker cache-to mode=max export builder stage (ENV DATABASE_URL...) vào shared GHA cache — ai có cache read đọc được. NEXT_PUBLIC_API_V2_URL bake localhost:5555 vào bundle production.",
+ fix:"USER node sau apt-get; .dockerignore thêm .env,.env.*,*.pem,*.key,.husky; remove/comment studio service cho prod; cache-to mode=min; pin 4 actions theo commit SHA; set đúng API v2 URL.",conf:"high",act:10,src:"A6#10, A6#13, A6#14, A6#17"},
+{id:"HI-13",pri:1,cat:"Data & Prisma",title:"61 applied migrations sửa TẠI CHỖ — checksum drift, wrong-schema deploys, thuế upstream vĩnh viễn",loc:"packages/prisma/migrations/** (61 files, commit b5e7e8dbc5)",origin:"fork",ver:0,
+ impact:"2 agent hội tụ. _prisma_migrations ghi checksum per-migration → DB cũ drift mỗi migrate dev (cần reset). Unqualified DDL phụ thuộc search_path của role chạy migration — grep toàn packages/prisma: ZERO search_path/multiSchema config → superuser/CI tạo object vào schema public trong khi app query custom schema (insights/reporting query fail 'relation does not exist', có thể tạo bộ bảng bóng thứ 2). 151 upstream migration commits kể 2025-06 → phải strip tay lại mỗi sync, không CI phát hiện file sót. Edit được áp nhất quán (8 hit còn lại đều trong SQL comment) — sạch về một nửa.",
+ fix:"Revert 61 files về upstream; set search_path ở connection/role (ALTER ROLE ... SET search_path = cal) hoặc DSN options; dùng multiSchema preview cho future migrations; nếu cần di chuyển objects → 1 migration MỚI cuối chain, không rewrite history.",conf:"high",act:14,src:"A3#18, A5#3"},
+{id:"HI-14",pri:1,cat:"Architecture",title:"Workflows engine là CRUD shell — scheduleRemindersForBooking có ZERO production callers, không reminder nào bao giờ được gửi",loc:"packages/features/workflows/lib/WorkflowService.ts:331-399",origin:"fork",ver:1,
+ impact:"Grep toàn repo (A5, xác nhận bởi A3 + tôi): chỉ định nghĩa + test + router CRUD. Không dispatcher, không cron route, không call từ booking flow → user định nghĩa workflow ở /workflows, persist... KHÔNG reminder nào bao giờ được tạo hay gửi. CHANGELOG/docs quảng cáo là \"Workflows & Meeting Reminder Automation Engine\". Kèm: query where {trigger} đơn giá trị → AFTER_EVENT/NEW_EVENT/EVENT_CANCELLED/RESCHEDULE_EVENT không bao giờ match; referenceId overload Date.now() thay provider message id (phá cancel-by-reference); WorkflowReminder index shape sai so với dispatcher; findMany không tenant filter, không take.",
+ fix:"Gọi scheduleRemindersForBooking từ booking created/rescheduled/cancelled; trigger: {in: [...]} theo event; referenceId = provider id; index [method, scheduled, scheduledDate]; nếu chưa ship → mark not-active trong UI thay vì giao diện trông như hoạt động.",conf:"high",act:0,src:"A5#6, A3#19, A3#22"},
+{id:"HI-15",pri:1,cat:"Data & Prisma",title:"updateWorkflow delete-then-recreate NGOÀI transaction (mất steps vĩnh viễn) + activeOn unvalidated + createWorkflow ghi vào team bất kỳ",loc:"packages/features/workflows/lib/WorkflowService.ts:145-151,179,186,191,212-220",origin:"fork",ver:0,
+ impact:"3 writes tách rời không $transaction: workflowStep.deleteMany + workflowsOnEventTypes.deleteMany + workflow.update — P2025/kết nối giữa chừng = mất TOÀN BỘ steps + activeOn bindings vĩnh viễn, UI chỉ báo generic error, không rollback. activeOn: z.array(z.number().int()) client tự khai, chỉ FK check → cross-tenant write vào join table; event type của nạn nhân sẽ pull workflow người lạ (sendTo, reminderBody). createWorkflow team: {connect: {id: teamId}} không membership check → plant workflow vào tenant khác.",
+ fix:"$transaction wrap cả 3 (hoặc nested steps: {deleteMany, create} một call — atomic ở Prisma); count check ownership của MỌI activeOn (eventType.userId/teamId/membership) trong cùng transaction; membership check trước connect.",conf:"high",act:4,src:"A5#7, A3#6, A1#2"},
+{id:"HI-16",pri:1,cat:"Architecture",title:"Branding hardcode trong constants.ts vi phạm rule riêng của fork + patch:branding chưa từng chạy → ship mixed branding ngay bây giờ",loc:"packages/lib/constants.ts:38-42; scripts/patch-crove-branding.ts:16-22; docs/Architecture.md §V",origin:"fork (commit a0554d71b4)",ver:0,
+ impact:"Fallback \"Crove\"/\"MetaDOS LLC\"/\"help@crove.com\" hardcode — docs §V.1 yêu cầu Configuration Over Code; Dockerfile:21-23 + .env.example:278-280 ĐÃ cấp branding qua env nên edit này thừa và provably redundant. 28 upstream commits kể 2025-06 trên constants.ts + server/lib/constants.ts + Logo.tsx → conflict chắc chắn mỗi sync. patch:branding chưa từng chạy (grep en/common.json: zero \"Crove\"/\"MetaDOS\"), không wire CI/Docker → constants render \"Crove\" nhưng 36 locale catalog vẫn \"Cal.com/Cal.diy\". Regex \\bCal\\.com\\b→Crove quá rộng sẽ phá help text/URL nếu có ai chạy.",
+ fix:"Revert constants.ts:38-42 về upstream (giữ parseCommaSeparated fix — genuine improvement, tách riêng commit); thêm ARG/ENV NEXT_PUBLIC_SENDER_ID/SENDER_NAME vào Dockerfile; patch:branding: xoá hoặc narrow theo key-allowlist + --check mode + commit output.",conf:"high",act:14,src:"A5#4, A5#5"},
+{id:"HI-17",pri:1,cat:"Architecture",title:"13 throw new Error bare trong fork services → mọi authz failure trả HTTP 500 thay 403/404",loc:"packages/features/teams/TeamService.ts:174,274,317,346,367,407,451; organizations/OrganizationService.ts:156,184,228; workflows/lib/WorkflowService.ts:96,115,119",origin:"fork",ver:0,
+ impact:"Verified end-to-end: toTRPCError.ts:60-70 chỉ convert ErrorWithCode; plain Error → INTERNAL_SERVER_ERROR. \"Only Team Owners can delete this team\" trả 500 thay 403; \"Team with ID N not found\" trả 500 thay 404. useMutation không phân biệt \"not allowed\" vs \"server crashed\"; Sentry/error-rate đốt trên non-incident, che thật sự outage. Vi phạm agents/rules/quality-error-handling.md.",
+ fix:"Mechanical: ErrorWithCode.Factory.Forbidden (7 authorization), .NotFound (3 not-found), .BadRequest (2 validation). Cả 3 file đều trong packages/features — import hợp lệ.",conf:"high",act:15,src:"A5#8"},
+{id:"HI-18",pri:1,cat:"Webhooks & Integrations",title:"Brevo webhook báo success VÔ ĐIỀU KIỆN — trackEvent result bị bỏ, monitoring mù hoàn toàn",loc:"apps/web/app/api/webhooks/brevo/route.ts:91-93,96-103,105-114",origin:"fork",ver:1,
+ impact:"Verified đọc file: per-attendee failure được capture (syncResults.push({synced})) rồi BỊ BỎ — trackEvent return không assign; recordDelivery success:true hardcode; response success:true. TẤT CẢ attendee fail → dashboard xanh, successRate cao, caller nhận success:true. brevoService không import logger → Brevo total outage không có server-side record nào. For-loop 2 serial fetch/attendee KHÔNG timeout/KHÔNG AbortController → 10 attendees = 20 round-trips trong 1 request; Brevo chậm → route timeout → Brevo retry → duplicate sync.",
+ fix:"Capture trackEvent result; success = syncResults.every(r=>r.synced) hoặc partial-success non-2xx; logger.error; AbortSignal.timeout(5000) cả 2 fetch; Promise.allSettled per-attendee.",conf:"high",act:5,src:"A5#9"},
+{id:"HI-19",pri:1,cat:"i18n & UX",title:"/teams render RAW i18n keys (button chính hiển thị chữ 'create_a_team') + ~200 string hardcode English qua 4 màn hình fork",loc:"apps/web/modules/teams/views/teams-listing-view.tsx:43,76,134,135,148; webhook-monitoring-dashboard.tsx; EventTeamTab.tsx:34; workflows-listing-view.tsx",origin:"fork",ver:1,
+ impact:"A4+A5 cùng verified: 4 keys (team_created_successfully, create_a_team, no_teams_yet, create_team_description) không tồn tại trong BẤT KỲ catalog nào (36 files) → button chính /teams hiển thị \"create_a_team\", empty state \"no_teams_yet\", toast \"team_created_successfully\". 73 commits fork thêm đúng 1 key (signin_with_dos_id) — vi phạm AGENTS.md \"Add translations to en/common.json\". ~200 string hardcode English trên webhook dashboard + EventTeamTab + Workflows view (TRIGGER_LABELS/ACTION_LABELS maps). 2 file import useLocale rồi KHÔNG gọi t() lần nào → dead subscription re-render khi locale đổi. Metadata 3 pages hardcode English (_t ignored).",
+ fix:"Thêm 4 keys hoặc reuse (create_team:1089, org_no_teams_yet:2830-2831 — team_created_successfully cần riêng vì {{teamName}}); bọc strings trong t(); maps thành Record key + t() tại render; bỏ useLocale chết; dùng t trong generateMetadata.",conf:"high",act:15,src:"A4#3, A4#12, A5#15"},
+{id:"HI-20",pri:1,cat:"Build & CI/CD",title:"Type-check gate gãy: tsc-absolute ENOENT trên Windows + chỉ 7/115 packages được gate + mcp-server ngoài CI hoàn toàn + tests bị exclude khỏi type-check",loc:"node_modules/tsc-absolute/dist/index.js:8; apps/web/package.json:17; packages/mcp-server/package.json:10-14; apps/web/tsconfig.json:35",origin:"upstream (wrapper) + fork (mcp-server, tsconfig exclude)",ver:1,
+ impact:"process-wrapper spawn('tsc') không shell:true → ENOENT Windows (CreateProcess không áp PATHEXT, bin là tsc.cmd) → 7 scripts type-check:ci unrunnable; check-types.yml chạy đúng lệnh đó → Windows contributor không reproduce CI. Bug thứ 2: mapStreamLines split os.EOL KHÔNG end-handler → last partial line bị drop (diagnostics swallowed). Chỉ 7 workspaces có type-check script (features/trpc/prisma/lib/platform/* KHÔNG có) — claim \"Verify 114/114 packages pass type-check\" trong commit da1603eb9d KHÔNG reproducible. mcp-server: no type-check/build script → turbo skip hoàn toàn; bin crove-cal-mcp.ts là TS file với shebang → Node 20 ERR_UNKNOWN_FILE_EXTENSION, documented launch path broken. apps/web/tsconfig:35 exclude **/*.test.ts → Vitest (esbuild) không type-check → test không thể fail khi props drift. Tôi đã verify trực tiếp bằng cách bypass tsc-absolute và type-check 4 packages — đều sạch.",
+ fix:"Swap 7 scripts sang tsc --pretty --noEmit, drop tsc-absolute; thêm type-check cho mcp-server (đặc biệt) + cân nhắc features/trpc; build bin → dist/*.js; revert exclude tests.",conf:"high",act:10,src:"A5#12, A5#13, A5#20"},
+{id:"HI-21",pri:1,cat:"Webhooks & Integrations",title:"SSRF guard tắt WHOLESALE trên self-hosted — đúng profile deployment của fork",loc:"packages/lib/ssrfProtection.ts:143-150; packages/lib/constants.ts:69-71; trpc viewer/webhook/{create,edit,testTrigger}.handler.ts",origin:"upstream (không trong fork diff) nhưng sống đúng deployment fork",ver:0,
+ impact:"IS_SELF_HOSTED = true cho cal.crove.com (hostname không kết thúc .cal.com/.cal.dev/...) → validateUrlCore return TRƯỚC private-IP check + blocked-hostname check + DNS resolution. Authenticated user gọi viewer.webhook.testTrigger {url:\"http://127.0.0.1:5432/\"} → server POST attacker-shaped JSON tới internal target. Blind (response chỉ {ok,status}) nhưng đủ port-scan mạng nội bộ, hit admin-only localhost endpoints, poison internal queues. Chỉ 4 literal metadata hostnames còn block. DNS-rebinding protection unreachable.",
+ fix:"Self-hosted branch vẫn chạy isPrivateIP/isBlockedHostname/DNS resolution; opt-in qua env WEBHOOK_ALLOW_PRIVATE_IPS thay vì infer từ hostname. (sendPayload đã có redirect:manual — giữ.)",conf:"high",act:0,src:"A2#13"},
+{id:"HI-22",pri:1,cat:"Auth & Access Control",title:"Video recording token: fallback key public trong repo + so sánh !== — tải private recordings mọi tenant khi env unset",loc:"packages/lib/videoTokens.ts:5,20,29; apps/web/app/api/video/recording/route.ts:14-25; .env.example:453",origin:"upstream (cal.com d9df9b3d01)",ver:1,
+ impact:"Verified đọc file: CAL_VIDEO_RECORDING_TOKEN_SECRET || \"default-secret-change-me\" ở CẢ generate lẫn verify (literal nhất quán). .env.example:453 ship variable RỖNG → deployment theo docs chạy trên key public. GET /api/video/recording?token=... KHÔNG session check — token là auth duy nhất, 302 tới Daily.co download_link. Attacker tính HMAC offline cho recordingId bất kỳ (xuất hiện trong booking confirmation email) với expiry 6 tháng → tải private recordings mọi tenant. verifyVideoToken dùng !== (timing leak SHA-256 digest — không exploitable độc lập nhưng nên sửa).",
+ fix:"Bỏ fallback, throw tại module load nếu unset (pattern apps/web/next.config.ts:50 cho NEXTAUTH_SECRET); timingSafeEqual; rotate nếu từng deploy không set.",conf:"high",act:2,src:"A1#4"},
+
+// ============ MEDIUM ============
+{id:"MD-01",pri:2,cat:"Webhooks & Integrations",title:"/api/webhooks/health unauth read+write — leak error strings tenant, poisoning audit log, force 503",loc:"apps/web/app/api/webhooks/health/route.ts:18-76; webhookMonitor.ts",origin:"fork (249ffa6731)",ver:0,
+ impact:"GET trả getMetrics() + recentDeliveries[].error — raw exception từ dos-org-sync/crove-crm (hostname, table, constraint names) cho bất kỳ ai, kèm topology nội bộ. POST {source,event} client tự khai → 100 forged success evict mọi entry thật (che outage thật), hoặc flood fail → status failing → endpoint trả 503 → uptime monitor báo cả hệ thống chết. body.json().catch(()=>({})) vẫn được record thành successful delivery. Dashboard page chỉ check session?.user?.id (mọi logged-in user, không phải admin).",
+ fix:"Gate GET/POST sau admin session hoặc HEALTHCHECK_TOKEN; drop POST simulation hoặc admin-only; scope getMetrics theo tenant; generic error; remove CORS *.",conf:"high",act:0,src:"A2#3, A1#13, A5#2"},
+{id:"MD-02",pri:2,cat:"Auth & Access Control",title:"syncDosOrganizations slug fallback tự grant OWNER trên org có sẵn (JIT adoption)",loc:"packages/features/auth/lib/syncDosOrganizations.ts:99-105,152-160,162-177,196-206",origin:"fork (b2233545e6, rework 249ffa6731)",ver:0,
+ impact:"Claim mang name không id → org lookup degrade thành slug match TOÀN CỤC (slug = slugify(org.name)) → nhặt org có sẵn trùng slug, không kiểm tra dosOrgId. membership.upsert role TỪ CLAIM (\"OWNER\"→OWNER) accepted:true, set user.organizationId → attacker nhận role từ claim trở thành org-admin nạn nhân (isOrgAdmin derive từ accepted membership). Kèm MD-04 (6 writes không transaction) → stuck user. Kèm MD-05 (JSONB lookup unindexed).",
+ fix:"id bắt buộc cho JIT; không id → tạo team MỚI, không adopt; cap JIT role ở MEMBER; yêu cầu verified dosOrgId match hoặc email domain khớp orgAutoAcceptEmail; không bao giờ RAISE role của org đã có dosOrgId khác.",conf:"medium-high",act:11,src:"A1#7, A3#13"},
+{id:"MD-03",pri:2,cat:"Auth & Access Control",title:"PBAC procedures là no-op stub — checkPermission luôn return true",loc:"packages/trpc/server/procedures/pbacProcedures.ts:7-12,36-49,75-88",origin:"upstream (cal.diy ab21c7f805 thay real service bằng local stub)",ver:0,
+ impact:"createTeamPbacProcedure/createOrgPbacProcedure: PermissionCheckService.checkPermission(...args){return true} — argument permission/fallbackRoles ĐẦU TRANG TRÍ. Router nào wrap helper này là authorized bởi authedProcedure thuần, code NHÌN như được bảo vệ. Hiện chỉ 1 consumer (bookings.getWrongAssignmentReports — handler stub) nên chưa leak; nhưng là bẫy cho bất kỳ ai implement thật.",
+ fix:"Xoá cả 2 helper đến khi port được PermissionCheckService thật, HOẶC implement checkPermission query membership {userId, teamId, accepted:true, role in fallbackRoles}; thêm test assert false cho non-member.",conf:"high",act:0,src:"A1#11"},
+{id:"MD-04",pri:2,cat:"Data & Prisma",title:"organization.member_added 6 writes tuần tự không transaction — user kẹt trạng thái nửa vời vĩnh viễn",loc:"apps/web/app/api/webhooks/dos-org-sync/route.ts:222-347; syncDosOrganizations.ts:141-172; TeamService.createTeam:203-256",origin:"fork",ver:0,
+ impact:"team.findFirst/create → user.findFirst/create → membership.upsert → profile.upsert → user.update, không $transaction. profile.upsert fail (username collision — orgUsername = user.username || email prefix KHÔNG org-qualified, @@unique([username, organizationId])) → Membership OWNER accepted đã commit, KHÔNG có Profile → determineProfile/findByUpIdWithAuth throw \"Profile not found\" → user kẹt, DOS.Me retry fail cùng cách mỗi lần.",
+ fix:"$transaction(async tx => ...) cho từng event handler, pass tx mọi call; org-qualify username; catch P2002 retry.",conf:"high",act:11,src:"A3#7"},
+{id:"MD-05",pri:2,cat:"Data & Prisma",title:"Tenant lookup qua JSONB metadata path KHÔNG index — sequential scan bảng Team mỗi login + mỗi webhook",loc:"packages/features/auth/lib/syncDosOrganizations.ts:93,214; dos-org-sync/route.ts:161,208,226,355,392,400,459,474,523; schema.prisma:559-647",origin:"fork (queries) + upstream (schema)",ver:0,
+ impact:"where: {isOrganization: true, metadata: {path:[\"dosOrgId\"], equals}} → jsonb_path_query per row. Team chỉ có @@unique([slug,parentId]) + @@index([parentId]) — KHÔNG index metadata/isOrganization. Chạy 1-2 lần/org trong claim list trên MỖI OIDC sign-in (4 call sites trong next-auth-options) + jwt callback + 3 lần/webhook. Multi-tenant → Team là tenant table, latency login tăng tuyến tính theo số tenant.",
+ fix:"Promote dosOrgId/dosTeamId thành columns + @@unique; hoặc expression index ((metadata->>'dosOrgId')) WHERE isOrganization — verify EXPLAIN trước vì Prisma không target expression index.",conf:"high",act:11,src:"A3#8"},
+{id:"MD-06",pri:2,cat:"Data & Prisma",title:"WebhookScheduledTriggers: no index + unbounded findMany + N+1 delete + allSettled không await + delete trước fetch (retry mù)",loc:"packages/features/webhooks/lib/handleWebhookScheduledTriggers.ts:9-81; schema.prisma:1317-1332; cron-webhooks-triggers.yml",origin:"upstream, AGGRAVATED bởi fork (cron bị guard off — HI-10)",ver:0,
+ impact:"Table chỉ có PK + FK indexes — filter startAfter là seq scan, cron chạy MỖI PHÚT (upstream). findMany không take, mỗi row mang payload lớn → backlog nạp cả vào heap. Row delete ở :76 TRƯỚC fetch :64 resolve → failed delivery không bao giờ retry (retryCount never incremented). Promise.allSettled KHÔNG await → serverless freeze mid-flight. Trên fork cron disabled → tích lũy vô hạn.",
+ fix:"@@index([startAfter]); take:100 batch; deleteMany({id in}) sau dispatch; await allSettled; xác nhận deployment schedule riêng /api/cron/webhookTriggers vì GH cron đang off.",conf:"high",act:10,src:"A3#9"},
+{id:"MD-07",pri:2,cat:"Data & Prisma",title:"mode:\"insensitive\" email lookup bất bại unique index — sequential scan bảng users lớn nhất",loc:"dos-org-sync/route.ts:258,362,482,529; TeamService.ts:344-349; mcp-server users.ts:20,84",origin:"fork",ver:0,
+ impact:"findFirst({email:{equals, mode:\"insensitive\"}}) → UPPER(email)=UPPER($1) — b-tree unique trên email (case-sensitive collation) KHÔNG serve được → seq scan users, 1-2 lần mỗi member_added/removed + mỗi invite. users là bảng lớn nhất schema. Contrast next-auth-options.ts:507 dùng sensitive mode — index-usable.",
+ fix:"findUnique({where:{email: data.user_email.toLowerCase().trim()}}) — email đã canonical-lowercase tại creation trong chính handlers này; hoặc index lower(email) nếu legacy mixed-case.",conf:"high",act:0,src:"A3#10"},
+{id:"MD-08",pri:2,cat:"Data & Prisma",title:"Teams/org listing materialize FULL member roster (kèm user.email) chỉ để ĐẾM — multi-MB payload mỗi navigate",loc:"packages/features/teams/TeamService.ts:59-121; organizations/OrganizationService.ts:36-103",origin:"fork (be7c7864a0)",ver:0,
+ impact:"findUserTeams select members[] + eventTypes[] cho MỌI team chỉ để memberCount: m.team.members.length. findUserOrganizations tệ hơn: members kèm user {id,name,username,email,avatarUrl} + children + mỗi child's members — dùng cho 2 con số. 1 + N orgs × (M members × 5 fields + C children × K members). User trong org 5000 người / 200 sub-teams → multi-MB JSON mỗi /teams, ship email mọi colleague ra browser. Không take trên nested relations.",
+ fix:"_count: {select:{members:true,children:true}} + eventTypes take:5; roster cần thật → tách viewer.teams.listMembers paginated.",conf:"high",act:12,src:"A3#11"},
+{id:"MD-09",pri:2,cat:"Data & Prisma",title:"updateOrganization nhận lockEventTypeCreationForUsers rồi BỎ QUÊN — toggle trả 200 OK, setting không đổi",loc:"packages/features/organizations/OrganizationService.ts:7-16,184-192; organizations/_router.tsx:55,18",origin:"fork (be7c7864a0)",ver:0,
+ impact:"Field được zod schema nhận, router forward, input interface declare — rồi dropped: data chỉ gán name/slug/bio/logoUrl/metadata. Home thật là OrganizationSettings.lockEventTypeCreationForUsers — model riêng method không bao giờ đụng. Org admin toggle → 200 OK, response trông success → members VẪN tạo event type mà admin tưởng đã khoá. Silent failure, không cách nào nhận biết.",
+ fix:"Viết vào OrganizationSettings (upsert trong cùng transaction — chú ý orgAutoAcceptEmail non-nullable) hoặc REMOVE khỏi input schema để API không nói dối.",conf:"high",act:12,src:"A3#12"},
+{id:"MD-10",pri:2,cat:"Webhooks & Integrations",title:"HitPay webhook HMAC so !== thay timingSafeEqual — timing oracle trên payment-authorization gate",loc:"packages/app-store/hitpay/api/webhook.ts:106-107",origin:"upstream",ver:0,
+ impact:"!== short-circuit per byte → response time leak độ dài hex prefix đúng. signed là 64-char SHA-256 hex; payment_request_id xuất hiện trong redirect URL → attacker iterate guess nibble-by-nibble đánh dấu UNPAID booking thành paid. Practical remote exploitation chậm nhưng đây là payment-authorization check; sibling BTCPay cùng repo làm ĐÚNG (hex-validate + length check + timingSafeEqual).",
+ fix:"Mirror btcpayserver/api/webhook.ts:88-93 — hex-validate + length + crypto.timingSafeEqual.",conf:"high",act:0,src:"A2#10"},
+{id:"MD-11",pri:2,cat:"Webhooks & Integrations",title:"Daily (Cal Video) webhook: !== compare + test-mode FAIL-OPEN + no replay window",loc:"apps/web/app/api/recorded-daily-video/route.ts:41,58-77",origin:"upstream",ver:0,
+ impact:"testMode = NEXT_PUBLIC_IS_E2E || INTEGRATION_TEST_MODE wrap TOÀN BỘ verification → nếu prod mang flag (plausible: fork chạy Playwright E2E against deployed instance) → anonymous POST recording.ready-to-download → updateRecordedStatus + gửi email download link + fire customer webhooks cho room_name bất kỳ. Còn khi secret set: !== là timing oracle trên base64 digest; x-webhook-timestamp được fold vào signed string nhưng KHÔNG check freshness → replay vô hạn. Early-return unauth cho {test:\"test\"}.",
+ fix:"timingSafeEqual; gate bypass theo NODE_ENV!==production thêm env flag; reject timestamp cũ >5 phút.",conf:"high",act:0,src:"A2#11"},
+{id:"MD-12",pri:2,cat:"Webhooks & Integrations",title:"App-credential webhook so shared secret bằng !== — bearer secret có thể thay mọi OAuth token của user",loc:"apps/web/app/api/webhook/app-credential/route.ts:26",origin:"upstream",ver:0,
+ impact:"Endpoint writes decrypted third-party app keys vào Credential.key cho userId+appSlug BẤT KỲ — header secret là hàng rào duy nhất. !== → timing oracle trên high-value bearer secret. Mitigations: APP_CREDENTIAL_SHARING_ENABLED phải true + body phải decrypt đúng CALCOM_APP_CREDENTIAL_ENCRYPTION_KEY. Fail-closed đúng khi secret unset.",
+ fix:"timingSafeEqual sau length check; reject khi CREDENTIAL_SYNC_SECRET unset thay vì rely vào boolean khác.",conf:"high",act:0,src:"A2#12"},
+{id:"MD-13",pri:2,cat:"Auth & Access Control",title:"MCP createEventType fallback \"first available user\" — ghi nhầm owner vào user id thấp nhất (thường là instance admin)",loc:"packages/mcp-server/src/tools/eventTypes.ts:145-149",origin:"fork",ver:0,
+ impact:"findFirst() không where không orderBy → planner trả row đầu = instance admin. LLM agent hallucinate username là failure mode bình thường → event type tạo dưới danh user KHÁC, xuất hiện trên /event-types của họ, bookable public, họ nhận confirmation emails — KHÔNG error, KHÔNG hint trong response.",
+ fix:"Delete fallback, throw: \"User ID is required to create an event type\". Never infer owner for a write.",conf:"high",act:13,src:"A3#15"},
+{id:"MD-14",pri:2,cat:"Auth & Access Control",title:"MCP list_schedules: empty object trong OR → username-only lookup match MỌI user, trả schedule người khác",loc:"packages/mcp-server/src/tools/users.ts:79-88",origin:"fork",ver:0,
+ impact:"OR: [input.email ? {...} : {}, input.username ? {...} : {}] — email undefined → nhánh đầu là {} mà Prisma hiểu là 'không điều kiện' → OR luôn match mọi row; findFirst không orderBy trả user id thấp nhất (instance owner). Caller tin mình đang xem Alice → nhận schedule/timeZone/availability của người khác. Tool không tin cậy cho username-only lookup.",
+ fix:"Build OR array push chỉ khi defined; throw nếu empty.",conf:"high",act:13,src:"A2#8"},
+{id:"MD-15",pri:2,cat:"Webhooks & Integrations",title:"/api/health trả raw pg/Prisma error message cho unauth — recon miễn phí DB topology",loc:"apps/web/app/api/health/route.ts:14-24,39-41",origin:"fork (4f814f5377)",ver:0,
+ impact:"3 agent hội tụ. P1001 \"Can't reach database server at host:port\", role errors, P2021 \"table crove.Workflow does not exist\" (leak luôn CR-03!) — kèm rejectUnauthorized:false (HI-08) → attacker có hostname/port/database/role/schema. Không auth, không rate limit. Error captured NHƯNG KHÔNG LOG — operators không có server-side record, internet có detail (observability ngược).",
+ fix:"Return {status, latencyMs} only; logger.error server-side; nếu cần detail cho ops → gate sau CRON_API_KEY.",conf:"high",act:5,src:"A2#18, A3#17, A5#23"},
+{id:"MD-16",pri:2,cat:"Frontend & UX",title:"Webhook dashboard: 5s poll KHÔNG background gate (~17,280 req/day/tab), no AbortController, out-of-order overwrite",loc:"apps/web/modules/webhooks/views/webhook-monitoring-dashboard.tsx:31-58",origin:"fork (249ffa6731)",ver:0,
+ impact:"setInterval không check document.visibilityState → tab background vẫn poll vô hạn, mỗi response ≤50 deliveries + 6 route metrics. fetchMetrics không cancel → response chậm (đúng lúc status=failing trả 503) stack up unbounded. Không sequencing → slow response resolve SAU fast response → setData(json) đè fresh metrics bằng stale — dashboard live hiển thị SAI latency/success.",
+ fix:"useQuery({refetchInterval: autoRefresh?5000:false}) — TanStack đã wired global, có background pausing + dedup + last-write-wins miễn phí; hoặc AbortController + request-id guard.",conf:"high",act:15,src:"A4#4"},
+{id:"MD-17",pri:2,cat:"Frontend & UX",title:"EventTeamTab: form.watch()×4 → global subscription re-render cả EventTypeWeb; setValue double-write; assignAllTeamMembers stale",loc:"apps/web/modules/event-types/components/tabs/team/EventTeamTab.tsx:37-41,63,191-192,210-211,229-230,239-256",origin:"fork (4373031754)",ver:0,
+ impact:"watch(name) trong render = global _names.watch subscription → owner useForm (EventTypeWeb) re-render toàn trang mỗi keystroke chọn scheduling type/thêm host: rebuild tabMap 9 entries, tạo zod schema mới mỗi render (querySchema:284), 3 mutation option objects. Mỗi toggle onCheckedChange gọi onChange() RỒI form.setValue() → 2 writes + 2 full-form-state emissions/click. useState(watchAssignAll) seed 1 lần không re-sync sau form.reset() sau save → UI hiển thị sai giá trị form thật.",
+ fix:"useWatch({control, name}) ×4; xoá redundant setValue; drive AssignAllTeamMembers từ watched value thay local state.",conf:"high",act:0,src:"A4#5, A4#6, A4#7"},
+{id:"MD-18",pri:2,cat:"Frontend & UX",title:"Workflows view: watch subscriptions page-level + activeOn trong .map + eventTypes.list fetch khi dialog đóng",loc:"apps/web/modules/workflows/views/workflows-listing-view.tsx:74-75,214,529,565",origin:"fork (f508fb9a32)",ver:0,
+ impact:"form.watch trong page-level component → mọi trigger/action change + checkbox click re-render CẢ PAGE (header + 3 preset cards + full workflow list + dialog). :565 form.watch(\"activeOn\") evaluate N lần per render (N = số event types) — mỗi lần re-add subscription. 2 query staleTime:1000 + refetchOnWindowFocus default true → viewer.eventTypes.list (heavy) fetch mỗi page load + mỗi focus dù dialog đóng.",
+ fix:"Extract dialog body + useWatch; hoist activeOn khỏi .map; gate query {enabled: createDialogOpen, staleTime:60000}.",conf:"high",act:0,src:"A4#8"},
+{id:"MD-19",pri:2,cat:"Frontend & UX",title:"toLocaleTimeString() per row per poll — ~672 Intl.DateTimeFormat constructions/phút trên main thread",loc:"apps/web/modules/webhooks/views/webhook-monitoring-dashboard.tsx:226,278",origin:"fork",ver:0,
+ impact:"Intl.DateTimeFormat là 1 trong những op đắt nhất JS i18n surface; với 5s poll + 50 rows + 6 cards → (50+6)×12 ≈ 672 constructions/phút, ngay trước React commit fresh render cùng subtree → visible jank spike mỗi 5s trên low-end devices.",
+ fix:"Module-level formatter + memoize formatted rows.",conf:"high",act:0,src:"A4#9"},
+{id:"MD-20",pri:2,cat:"Frontend & UX",title:"Logo <img> không width/height trên mọi authenticated page — CLS sitewide",loc:"packages/ui/components/logo/Logo.tsx:22,24-29; SideBar.tsx:118; TopNav.tsx:31",origin:"upstream (fork edited đúng những dòng này cho branding)",ver:0,
+ impact:"Sizing chỉ từ CSS (w-9/h-4 w-auto) → intrinsic width unknown đến khi load → sibling trong flex row shift ngang. src default /api/logo — dynamic route handler non-cacheable gates layout sidebar MỌI page + TopNav mobile chứa App Switcher/search/settings/dropdown. Recurring CLS site-wide; logo là LCP candidate trên login/landing.",
+ fix:"width/height attributes hoặc next/image priority + known dimensions; Cache-Control trên /api/logo + fixed-width wrapper.",conf:"high",act:0,src:"A4#10"},
+{id:"MD-21",pri:2,cat:"Frontend & UX",title:"<Link> wrap <Button> → invalid <a><button> nesting (a11y)",loc:"apps/web/modules/webhooks/views/webhooks-view.tsx:55-59; packages/ui/components/button/Button.tsx:243,343",origin:"fork",ver:0,
+ impact:"Button renders real <button> khi href undefined → <a href><button type=button>. HTML cấm interactive content trong <a> → screen reader announce button không làm gì / drop label; keyboard 2 tab stops cho 1 action; nested type=button suppress activation.",
+ fix:"Pass href cho Button (đã support link variant), bỏ wrapper.",conf:"high",act:0,src:"A4#11"},
+{id:"MD-22",pri:2,cat:"Frontend & UX",title:"Xoá workflow fire NGAY không confirmation — 1 mis-click mất vĩnh viễn",loc:"apps/web/modules/workflows/views/workflows-listing-view.tsx:403-407",origin:"fork",ver:0,
+ impact:"onClick straight to deleteMutation.mutate({id: wf.id}) — chỉ có success toast sau. Mọi destructive flow khác trong codebase gate sau dialog; Dialog machinery ĐÃ import trong cùng file. Kết hợp HI-17 (500 error) → user không biết xoá thành công hay không.",
+ fix:"ConfirmationDialogContent + mutate trong confirm handler.",conf:"high",act:15,src:"A4#13"},
+{id:"MD-23",pri:2,cat:"Architecture",title:"as any trên metadata ×2 — vô hiệu zod schema, JSON bất kỳ ghi thẳng Team.metadata",loc:"packages/trpc/server/routers/viewer/teams/_router.tsx:104; organizations/_router.tsx:52",origin:"fork",ver:0,
+ impact:"Input schema z.record(z.unknown()) nhưng call site metadata: input.metadata as any → Prisma.InputJsonValue type safety bị vứt; Team.metadata là Json? documented validated bởi teamMetadataSchema (dosOrgId/dosTeamId shape) → readers gặp shape bất kỳ, type system không catch được signature change. Fork discipline tốt ở chỗ khác: 22 as any trên fork lines, 20 trong tests (14× mockPrisma as any trong mcp-server.test).",
+ fix:"zod input refine qua teamMetadataSchema.safeParse, drop 2 casts; tests dùng vitest-mock-extended mockDeep<PrismaClient>() (đã là devDependency).",conf:"high",act:15,src:"A5#17"},
+{id:"MD-24",pri:2,cat:"Architecture",title:"@calcom/crovecrm phantom dependencies — undeclared workspace deps, chỉ sống nhờ node-modules hoisting",loc:"packages/app-store/crovecrm/package.json vs lib/CrmService.ts:1-4, components/EventTypeAppCardInterface.tsx:2-5",origin:"fork",ver:0,
+ impact:"Workspace riêng nhưng chỉ declare @calcom/types; import @calcom/features/crove-crm, @calcom/app-store/{_components,_utils,types}, @calcom/lib/constants — không declare. Sống nhờ nodeLinker: node-modules hoist root. Turbo dependency graph không biết → task ordering arbitrary cho future build; turbo prune @calcom/crovecrm emit broken subset; chuyển PnP/nohoist break ngay. (Rule 6 trong architecture-circular-dependencies.md 'app-store không import features' đã bị 77 call sites upstream vi phạm — rule stale so với code, cũng cần update.)",
+ fix:"Thêm @calcom/features, @calcom/app-store, @calcom/lib vào package.json; cập nhật rule file cho khớp thực tế.",conf:"high",act:15,src:"A5#19"},
+{id:"MD-25",pri:2,cat:"Architecture",title:"webhookMonitor per-process in-memory + UI optimistic defaults → dashboard sai/misleading khi scale",loc:"packages/lib/webhookMonitor.ts:39-40,143-149; webhook-monitoring-dashboard.tsx:157,186,33-49",origin:"fork",ver:0,
+ impact:"2 agent hội tụ. globalThis cache chỉ set khi NODE_ENV !== production → mỗi App Router entry bundle (/health, /brevo, /crove-crm, /dos-org-sync) có instance RIÊNG → deliveries của Brevo invisible cho health route → operator thấy \"Idle/Listening, successRate 100\" khi pipelines đang fail. Per-process ring buffer 100 → >1 replica = mỗi poll different instance, số liệu partial. UI defaults optimistic: successRate ?? 100, activeListeners ?? 5; fetchMetrics không else trên res.ok → 500 giữ stale data, isLoading:false → looks healthy. Ring buffer reset mỗi deploy.",
+ fix:"Assign globalThis vô điều kiện hoặc back bằng Redis (REDIS_URL đã trong turbo.json globalEnv)/DB; label per-instance; error branch; defaults ?? 0/?? null + explicit no-data state.",conf:"high",act:15,src:"A2#16, A5#16"},
+{id:"MD-26",pri:2,cat:"Build & CI/CD",title:"postinstall (husky install || true) nuốt failure → git hooks silently never install",loc:"package.json:64",origin:"fork change từ husky install && turbo run post-install",ver:0,
+ impact:"core.hooksPath = .husky/_ (generated bởi husky install). Install fail → git silently finds no hooks → pre-commit/lint-staged NEVER chạy → unlinted + SECRET-BEARING code commit tự do. Đây là path plausibly cho phép CR-01 land. Docker build đã set HUSKY=0 (Dockerfile:47) nên || true không cần thiết.",
+ fix:"Revert to && hoặc husky install || echo 'husky skipped'; thêm gitleaks/trufflehook pre-commit.",conf:"high",act:10,src:"A6#15"},
+{id:"MD-27",pri:2,cat:"Build & CI/CD",title:"CI tắt immutable installs + chạy dependency lifecycle scripts với secrets:inherit",loc:".github/actions/yarn-install/action.yml; .yarnrc.yml",origin:"upstream",ver:0,
+ impact:"YARN_ENABLE_IMMUTABLE_INSTALLS:false → yarn install trong CI re-resolve ranges + MUTATE yarn.lock → audited dependency set ≠ installed set; cache key hashFiles(yarn.lock) mismatch. Không enableScripts:false → postinstall của package mới-resolved chạy với secrets:inherit. Supply-chain surface.",
+ fix:"enableScripts:false + dependenciesMeta allowlist cho packages cần build; drop immutable override hoặc scope cho submodule case.",conf:"medium",act:10,src:"A6#16"},
+{id:"MD-28",pri:2,cat:"Build & CI/CD",title:"GHCR workflow: mutable action tags (checkout@v4...) + pull_request_target flows unguarded",loc:".github/workflows/deploy-docker.yml:18,21,24,36; semantic-pull-requests.yml:4,29-38; labeler.yml:3,16; cache-clean.yml:2-14; performance-tests.yml:4-28",origin:"fork (deploy-docker) + upstream (còn lại)",ver:0,
+ impact:"deploy-docker holds packages:write với actions pinned theo mutable tag → compromised action release hijack. semantic-pull-requests: pull_request_target (repo write perms) + attacker-chosen PR title flow vào action input qua ${{ }} interpolation + sticky-comment mutable tag. cache-clean: no permissions block + installs gh extension mutable. performance-tests: fires k6 at hardcoded cal.dev với nonexistent K6_CLOUD_TOKEN. Verified: KHÔNG có pull_request_target + PR-head-checkout + secrets combo; pr.yml có trust-check gate thiết kế đúng.",
+ fix:"Pin mọi action theo SHA; pass error message qua env: thay ${{ }}; permissions block explicit; guard/delete cache-clean + performance-tests trên fork.",conf:"medium",act:10,src:"A6#20, A6#21, A6#17"},
+{id:"MD-29",pri:2,cat:"Build & CI/CD",title:"NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED thiếu trong turbo.json env + 6 env vars bắt buộc không document",loc:"turbo.json globalEnv vs apps/web/modules/auth/login-view.tsx:183; .env.example",origin:"fork",ver:0,
+ impact:"Client-side var được inline at build time; thiếu trong globalEnv → turbo hash cached build outputs không tính flag → cached build với giá trị khác được restore → login button hiện/ẩn sai. Đồng thời OIDC_CLIENT_ID/SECRET, CROVE_OAUTH_CLIENT_SECRET, OIDC_WELL_KNOWN_URL, USE_POOL, BREVO_API_KEY (CROVE_BREVO_API_KEY) đọc trong code nhưng không có trong .env.example → deployer theo docs rơi vào hardcoded-secret fallback path (CR-01) thay vì config error.",
+ fix:"Thêm vào globalEnv/task env lists; document mọi var bắt buộc trong .env.example; remove fallback làm chúng optional.",conf:"medium",act:14,src:"A6#18, A6#19"},
+{id:"MD-30",pri:2,cat:"Architecture",title:"packages/platform/atoms/static/Stripe secrets.png — redaction fragment legible + Stripe account ID visible",loc:"packages/platform/atoms/static/Stripe secrets.png (590KB, upstream 3c46c35b69)",origin:"upstream",ver:0,
+ impact:"A6 inspect image: Stripe TEST-MODE API-keys page; publishable/secret/CLI key scribbled đỏ nhưng fragments pk_/sk_ còn legible; account ID acct_1SNuX6SliJQGEPobQ FULL visible trong URL bar + browser tab strip. Không key value hoàn chỉnh recoverable nhưng redaction không đủ.",
+ fix:"Xoá file; rotate test-mode keys shown; thay synthetic mock.",conf:"medium",act:0,src:"A6#22"},
+{id:"MD-31",pri:2,cat:"Webhooks & Integrations",title:"crovecrm api_url latent SSRF + functional bug: admin-configured keys chưa bao giờ được dùng",loc:"packages/app-store/crovecrm/lib/CrmService.ts:11-13; packages/features/crove-crm/croveCrmService.ts:9,53,100; zod.ts:6",origin:"fork",ver:0,
+ impact:"credential.key as {api_key?, api_url?} cast unvalidated → baseUrl từ DB, fetch(${baseUrl}/contacts) với Bearer api_key. zod: api_url z.string().optional() — KHÔNG .url(), KHÔNG SSRF check. Nếu Credential row mang api_url=http://169.254.169.254/... → server POST tới đó. Reachability LOW: không tìm thấy user-facing install path ghi credential này (không api/add.ts/callback.ts); zod.ts:4 là admin/instance App.keys schema (ghi vào prisma.app, KHÔNG prisma.credential) → CrmService đọc credential.key không bao giờ thấy admin value — functional bug song song.",
+ fix:"Constrain api_url z.string().url().refine + validateUrlForSSRF, HOẶC bỏ per-credential override đọc CROVE_CRM_API_URL (fix luôn admin-keys bug).",conf:"low (reachability), high (missing validation)",act:0,src:"A2#14"},
+{id:"MD-32",pri:2,cat:"Auth & Access Control",title:"bookingsProcedure middleware over-fetch FULL credentials (kèm key) vào ctx — latent hazard",loc:"packages/trpc/server/routers/viewer/bookings/util.ts:42,118",origin:"upstream",ver:0,
+ impact:"user: {include: {credentials: true}} chạy trên MỌI viewer.bookings.* call. Traced consumer duy nhất (editLocation) KHÔNG trả credential ra client — hiện KHÔNG exposure. Nhưng mọi decrypted OAuth token/API secret của booking owner ngồi trong ctx.booking.user.credentials; future handler return ctx.booking hoặc safeStringify vào log = leak. AGENTS.md explicitly forbids query shape này.",
+ fix:"select chỉ id/type/appId/key/delegationCredentialId, hoặc fetch trong handler qua getAllCredentialsIncludeServiceAccountKey (đã gọi :129) và drop khỏi middleware.",conf:"high (hiện không tới response)",act:0,src:"A2#17"},
+
+// ============ LOW ============
+{id:"LO-01",pri:3,cat:"Architecture",title:"hitpay/lib/currencyConversions.ts duplicate không ai import (upstream-inherited)",loc:"packages/app-store/hitpay/lib/currencyConversions.ts (30 dòng)",origin:"upstream (7131a1f015)",ver:1,
+ impact:"A5 verified: grep 10 hits, mọi import dùng @calcom/lib/currencyConversions — kể cả PaymentService.ts:10 của chính hitpay. Behaviour identical. Future zero-decimal fix vào canonical file sẽ silently miss bản này. Fork không tạo ra nó (upstream-inherited) — xoá tạo small deletion phải carry qua syncs.",
+ fix:"Xoá, ghi vào fork divergence log.",conf:"high",act:15,src:"A5#21"},
+{id:"LO-02",pri:3,cat:"Architecture",title:"3 barrels chết + 2 barrels live vi phạm barrel-import rule",loc:"packages/features/{teams,organizations,workflows}/index.ts (chết); brevo/index.ts, crove-crm/index.ts (live)",origin:"fork",ver:0,
+ impact:"3 dead barrels zero importers (routers dùng direct paths đúng). 2 live barrels có 3 importers vi phạm AGENTS.md + quality-avoid-barrel-imports.md: brevo/route.ts:1, crove-crm/route.ts:1, crovecrm/lib/CrmService.ts:1 — crovecrm được load qua generated crm.apps.generated.ts → barrel pulls cả features/crove-crm vào app-store module graph wholesale.",
+ fix:"Xoá 3 barrels chết; repoint 3 importers sang deep paths (brevoService, croveCrmService).",conf:"high",act:15,src:"A5#18"},
+{id:"LO-03",pri:3,cat:"Auth & Access Control",title:"updateWrongAssignmentReportStatus: authorization bị xoá bởi cal.diy refactor — cross-tenant state tampering + audit attribution forgery",loc:"packages/trpc/server/routers/viewer/bookings/updateWrongAssignmentReportStatus.handler.ts:25-45",origin:"upstream (ab21c7f805 xoá PermissionCheckService block — verified qua git show)",ver:0,
+ impact:"Any authenticated user với report UUID flip status trên team BẤT KỲ + reviewedById stamp user id mình (người không liên quan team). Leftovers: MembershipRole import never used; findTeamIdById chỉ để null-check. LOW vì Zod schema yêu cầu uuid + không endpoint enumerate report IDs (getWrongAssignmentReports là stub).",
+ fix:"Restore check: ADMIN/OWNER trên report.teamId trước updateStatus.",conf:"high",act:0,src:"A1#15"},
+{id:"LO-04",pri:3,cat:"Auth & Access Control",title:"2FA login JWT signed với ZERO-LENGTH key khi CALENDSO_ENCRYPTION_KEY unset (verified bằng jose)",loc:"packages/features/auth/lib/signJwt.ts:6; apps/web/server/lib/auth/login/getServerSideProps.tsx:19",origin:"upstream",ver:0,
+ impact:"new TextEncoder().encode(undefined) → 0-byte Uint8Array; A1 verified empirically: jose sign + verify HS256 với zero-length key THÀNH CÔNG. → /auth/login?totp=<forged JWT victim@corp.com> → trang login genuine-domain pre-set 2FA step cho victim, password field removed — phishing aid KHẢO. KHÔNG bypass auth: authorizeCredentials:186 luôn verifyPassword trước TOTP → bcryptjs.compare(undefined,...) reject. Kèm functional bug: redirect-based totp flow broken cho OAuth-only users (login-view:159 chỉ submit {email,totpCode}).",
+ fix:"Throw nếu !CALENDSO_ENCRYPTION_KEY trước encode (cả 2 sites).",conf:"high",act:2,src:"A1#16"},
+{id:"LO-05",pri:3,cat:"Auth & Access Control",title:"verifyCodeUnAuthenticated: TOTP seed degrades thành md5(email) khi key unset",loc:"packages/features/auth/lib/verifyCodeUnAuthenticated.ts:19-21",origin:"upstream",ver:0,
+ impact:"createHash(md5).update(email + (process.env.CALENDSO_ENCRYPTION_KEY || \"\")) — key unset → seed pure function của victim email → attacker tự tính 6-digit code (window 900s) → pass viewer.auth.verifyCodeUnAuthenticated → book với blocked/someone else's verified email. LOW vì deployment missing key cũng non-functional cho credentials encryption rộng.",
+ fix:"Throw nếu !key; HKDF/HMAC-SHA256 thay md5(email||key).",conf:"high",act:2,src:"A1#17"},
+{id:"LO-06",pri:3,cat:"Auth & Access Control",title:"checkUserAccessToProfile: mọi accepted member (cả MEMBER) resolve profile colleague qua client-supplied upId",loc:"packages/features/profile/repositories/ProfileRepository.ts:697-726; next-auth-options.ts:593",origin:"upstream",ver:0,
+ impact:"Nhánh thứ 2 chỉ constrain organizationId, không constrain profileId → MEMBER org X pass cho MỌI profile trong org X → autoMergeIdentities ghi profileId/upId/orgAwareUsername colleague vào token attacker → getServerSession trả session.user.profile = colleague. Mitigation verified: tRPC path tự phòng (findByUserIdAndProfileId strict userId+id → Unauthorized); global role unaffected; không tìm thấy server-side consumer privileged trên session.user.profile alone → LOW.",
+ fix:"Constrain nhánh 2: where {id: profileId, userId, organizationId}; checkOrgAdminAccessToUser là path riêng cho admins.",conf:"high",act:14,src:"A1#18"},
+{id:"LO-07",pri:3,cat:"Data & Prisma",title:"Redundant + low-cardinality indexes + WorkflowReminder index shape sai",loc:"schema.prisma:855+917 (Booking.uid), 834+841 (Attendee.email), 765-766 (Membership accepted/role), 2955 (WorkflowReminder)",origin:"upstream (WorkflowReminder: fork)",ver:0,
+ impact:"Booking.uid @unique đã có b-tree; @@index([uid]) = b-tree thứ 2 giống hệt. Attendee [email] là strict prefix của [email, bookingId]. Membership [accepted] boolean + [role] 4-value enum — selectivity tệ, planner không bao giờ chọn. Cả 3 bảng là highest-write-volume (Booking mỗi booking; Membership mỗi invite + JIT sync per org AND per team PER LOGIN). Mỗi redundant index = 1 b-tree insert thêm mỗi write + heap. WorkflowReminder (fork) (scheduledDate, scheduled) không match dispatcher query shape — upstream đã có (method, scheduled, scheduledDate) + seatReferenceId bị drop.",
+ fix:"DROP INDEX CONCURRENTLY sau khi verify pg_stat_user_indexes.idx_scan = 0; WorkflowReminder dùng shape upstream khi wire dispatcher.",conf:"high",act:0,src:"A3#20, A3#21, A3#22"},
+{id:"LO-08",pri:3,cat:"Data & Prisma",title:"Slug-collision fallback: 7 bản copy của Math.random() retry ĐÚNG 1 LẦN rồi P2002 → 500",loc:"TeamService.ts:192-199; OrganizationService.ts:234-241; syncDosOrganizations.ts:110-117,229-236; dos-org-sync/route.ts:168-175,234-241,416-423",origin:"fork",ver:0,
+ impact:"findFirst check-then-insert race (2 concurrent createTeam → 1 P2002 500); random suffix 36^4 ≈ 1.7M space, không loop không re-check → slug popular đẻ tail acme-x7k2, acme-9pq1...; DOS.Me retry mỗi lần burn 1 slug mới. DB protected bởi unique index — UX/robustness defect không phải integrity.",
+ fix:"1 helper loop counter suffix (acme, acme-1, acme-2...) catch P2002 retry thay pre-check.",conf:"high",act:15,src:"A3#25"},
+{id:"LO-09",pri:3,cat:"Data & Prisma",title:"tempOrgRedirect.updateMany thiếu fromOrgId — cross-tenant write latent",loc:"packages/trpc/server/routers/viewer/users/_router.ts:107-118",origin:"upstream (9d6c5756dd fix prisma→tx nhưng missing scope predate)",ver:0,
+ impact:"where {type, from} không fromOrgId — unique key là @@unique([from, type, fromOrgId]), read path handleOrgRedirect filter fromOrgId: 0. Hôm nay harmless (chỉ writer User-type là createAProfileForAnExistingUser luôn set fromOrgId: 0) → defence-in-depth; trở thành cross-tenant updateMany ngay khi có code path ghi nonzero fromOrgId.",
+ fix:"Thêm fromOrgId: 0 vào where cho khớp read path.",conf:"high",act:0,src:"A3#26"},
+{id:"LO-10",pri:3,cat:"Architecture",title:"packages/lib upward dependencies (upstream): useLocale → apps/web; HolidayService → features",loc:"packages/lib/hooks/useLocale.ts:7-8; holidays/HolidayService*.ts:2; test/builder.ts:2",origin:"upstream (không trong fork diff)",ver:0,
+ impact:"lib là layer thấp nhất theo architecture-circular-dependencies.md nhưng reach lên apps/web + features → lib không build/test được không app. Fork's UI (3 views mới) transitively coupled qua useLocale. FORK CLEAN: packages/ui zero @calcom/features imports; fork thêm 0 upward edge; services mới chỉ import prisma/lib/profile (downward/lateral).",
+ fix:"Không phải của fork; flag upstream hoặc invert (apps/web inject i18n context vào lib).",conf:"high",act:0,src:"A5#24"},
+{id:"LO-11",pri:3,cat:"Architecture",title:"isolatedModules: false ở 2 tsconfig platform — vô lý (construct động lực REQUIRE isolatedModules) + useDefineForClassFields residual risk ở platform/libraries",loc:"packages/platform/types/tsconfig.json:6; utils/tsconfig.json:6; libraries/tsconfig.json",origin:"fork (extended upstream inconsistency)",ver:0,
+ impact:"export type {X} from \"Y\" là construct REQUIRED bởi isolatedModules:true, không phải forbidden → override mua không gì, weaken check cho single-file transpilers. Low risk (packages compiled bằng tsc, không bundled). Residual: platform/libraries có emitDecoratorMetadata + experimentalDecorators ở ES2021 không explicit useDefineForClassFields:false → 1 target bump xa = silently flip (types/utils đã set explicit ở a5cdfe7850).",
+ fix:"Bỏ isolatedModules:false; thêm useDefineForClassFields:false vào platform/libraries.",conf:"high",act:0,src:"A5#26, A5#27"},
+{id:"LO-12",pri:3,cat:"Architecture",title:"Missing return trước redirect() (2 pages) + mcp-server minor issues + CrvCrmService fabricated organizer",loc:"apps/web/app/(use-page-wrapper)/(main-nav)/workflows/page.tsx:23; developer/webhooks/monitoring/page.tsx:23; mcp-server tools/*; crovecrm/lib/CrmService.ts:74,88-107",origin:"fork",ver:0,
+ impact:"redirect() throws NEXT_REDIRECT nên behaviour đúng — nhưng missing return làm TS tin component luôn render view; future try/catch wrapper (App Router common mistake) sẽ swallow redirect và render page UNAUTHENTICATED. mcp-server: zero @calcom/lib/logger — failures bare throw → MCP SDK surface opaque error, no server-side record. CrvCrmService:74 fabricates organizer {email:\"host@crove.com\"} ghi vào CRM; getContacts/getAvailability/listCalendars return [] silent → round-robin routing không contacts, no diagnostic.",
+ fix:"return redirect(...); add logger; throw thay silent []; log once at construction nếu intentional.",conf:"high",act:15,src:"A5#28, A5#25"},
+{id:"LO-13",pri:3,cat:"Build & CI/CD",title:"Misc build hygiene: prisma/.env dangling symlink trong image; npx trigger.dev@latest unpinned; signed example JWT trong docs",loc:"packages/prisma/.env (git mode 120000); packages/features/package.json:11-14; apps/api/v2/README-PLATFORM.md:50",origin:"upstream",ver:0,
+ impact:"Symlink content ../../.env — trong image /calcom/.env không tồn tại → dangling (Dockerfile:54 COPY packages ./packages carry nó vào). No .github/dependabot.yml → 448 alerts không có fix-PR automation. npx trigger.dev@latest trong npm scripts = unpinned remote code execution; workspace đã có trigger.dev@4.3.2 pinned. README-PLATFORM.md:50 chứa fully-signed example JWT. Kèm: crovecrm CrmService credential.key cast unvalidated → shape mismatch = isConfigured() false = mọi sync silently no-op.",
+ fix:"Replace symlink; add dependabot.yml; pin trigger.dev; placeholder JWT.",conf:"high",act:9,src:"A6#23, A6#24, A6#25, A6#27, A5#25"},
+{id:"LO-14",pri:3,cat:"Frontend & UX",title:"useLastUsed localStorage churn + hardcoded 'Crove' fallback thay APP_NAME",loc:"apps/web/modules/auth/hooks/useLastUsed.tsx:12-25; login-view.tsx:183,197",origin:"upstream (useLastUsed — fork chỉ widen LoginType) + fork (login-view)",ver:0,
+ impact:"Effect 1 read last_cal_login; effect 2 removeItem trong cùng commit (lastUsed còn undefined) → window giá trị persisted biến mất + redundant removeItem/setItem pair mỗi mount. login-view:197 hardcode fallback \"Crove\" thay dùng APP_NAME constant Logo.tsx đã import — inconsistent với branding-via-env goal (HI-16).",
+ fix:"Guard write effect bằng hydrated ref; dùng APP_NAME.",conf:"high",act:15,src:"A4#15"}
+];
+
+// ---------- render ----------
+const PRI_LABEL = ["Critical","High","Medium","Low"], PRI_CLS = ["b-crit","b-high","b-med","b-low"];
+const ORIGIN_LABEL = {fork:"Fork tự viết", upstream:"Upstream kế thừa", mixed:"Fork + Upstream"};
+const VER_LABEL = {1:["✓ Verified","v-yes"],0:["Agent","v-no"]};
+const listEl = document.getElementById("list");
+let curP = "all", curV = 0, q = "";
+
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function card(f){
+  const act = f.act ? ('<span class="chip">Action #' + f.act + "</span>") : "";
+  return '<div class="f p'+f.pri+'" data-id="'+f.id+'">'
+    + '<div class="head" onclick="this.parentElement.classList.toggle(\'open\')">'
+    + '<span class="badge ' + PRI_CLS[f.pri] + '">' + PRI_LABEL[f.pri] + '</span>'
+    + '<span class="fid">' + f.id + '</span>'
+    + '<span class="chip">' + esc(f.cat) + '</span>'
+    + '<span class="title">' + esc(f.title) + '</span>'
+    + '<span class="verif ' + VER_LABEL[f.ver][1] + '">' + VER_LABEL[f.ver][0] + '</span>'
+    + '</div><div class="body"><dl>'
+    + '<dt>Vị trí</dt><dd class="loc">' + esc(f.loc) + '</dd>'
+    + '<dt>Nguồn gốc</dt><dd>' + esc(ORIGIN_LABEL[f.origin] || f.origin) + '</dd>'
+    + '<dt>Tác động</dt><dd>' + esc(f.impact) + '</dd>'
+    + '<dt>Cách sửa</dt><dd>' + esc(f.fix) + '</dd>'
+    + '<dt>Độ tin cậy</dt><dd>' + esc(f.conf) + '</dd>'
+    + '<dt>Refs</dt><dd>' + esc(f.src) + (act ? ' ' + act : '') + '</dd>'
+    + '</dl></div></div>';
+}
+function apply(){
+  const t = q.trim().toLowerCase();
+  const rows = FINDINGS.filter(f =>
+    (curP === "all" || f.pri === curP) && (!curV || f.ver === 1) &&
+    (!t || (f.id+" "+f.title+" "+f.cat+" "+f.loc+" "+f.impact+" "+f.fix).toLowerCase().includes(t))
+  );
+  listEl.innerHTML = rows.map(card).join("") || '<p style="color:var(--muted)">Không có phát hiện nào khớp bộ lọc.</p>';
+  document.getElementById("count").textContent = rows.length + " / " + FINDINGS.length + " findings";
+}
+// summary
+const byPri = [0,0,0,0]; FINDINGS.forEach(f => byPri[f.pri]++);
+document.getElementById("nCrit").textContent = byPri[0];
+document.getElementById("nHigh").textContent = byPri[1];
+document.getElementById("nMed").textContent = byPri[2];
+document.getElementById("nLow").textContent = byPri[3];
+document.getElementById("nVerif").textContent = FINDINGS.filter(f=>f.ver===1).length;
+document.getElementById("hdrCount").textContent = FINDINGS.length + " findings";
+// category table
+const cats = {};
+FINDINGS.forEach(f => { (cats[f.cat] = cats[f.cat] || [0,0,0,0])[f.pri]++; });
+document.querySelector("#catTable tbody").innerHTML = Object.keys(cats).sort().map(c =>
+  "<tr><td><b>"+esc(c)+"</b></td><td>"+cats[c][0]+"</td><td>"+cats[c][1]+"</td><td>"+cats[c][2]+"</td><td>"+cats[c][3]+"</td></tr>"
+).join("");
+// controls
+document.querySelectorAll(".btn[data-p]").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".btn[data-p]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); curP = b.dataset.p === "all" ? "all" : +b.dataset.p; apply();
+}));
+document.getElementById("btnVerif").addEventListener("click", function(){
+  curV = curV ? 0 : 1; this.classList.toggle("on", !!curV); apply();
+});
+document.getElementById("q").addEventListener("input", function(){ q = this.value; apply(); });
+apply();
+</script>
+</body>
+</html>

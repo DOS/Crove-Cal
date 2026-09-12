@@ -9,7 +9,6 @@ async function healthHandler(req: NextRequest) {
   const startTime = Date.now();
   let dbStatus: "connected" | "disconnected" = "disconnected";
   let dbLatencyMs = -1;
-  let dbError: string | null = null;
 
   try {
     const dbStart = Date.now();
@@ -17,9 +16,8 @@ async function healthHandler(req: NextRequest) {
     await prisma.$queryRaw`SELECT 1`;
     dbLatencyMs = Date.now() - dbStart;
     dbStatus = "connected";
-  } catch (error) {
+  } catch {
     dbStatus = "disconnected";
-    dbError = error instanceof Error ? error.message : String(error);
   }
 
   const isHealthy = dbStatus === "connected";
@@ -37,7 +35,6 @@ async function healthHandler(req: NextRequest) {
       database: {
         status: dbStatus,
         latencyMs: dbLatencyMs >= 0 ? dbLatencyMs : undefined,
-        error: dbError || undefined,
       },
     },
     {

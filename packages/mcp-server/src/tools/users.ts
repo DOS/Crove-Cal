@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@calcom/prisma";
+import type { Prisma } from "@calcom/prisma/client";
 
 export interface GetUserProfileInput {
   email?: string;
@@ -11,7 +12,7 @@ export async function getUserProfileHandler(prisma: PrismaClient, input: GetUser
     throw new Error("Either email, username, or userId must be provided");
   }
 
-  const where: Parameters<typeof prisma.user.findFirst>[0]["where"] = {};
+  const where: Prisma.UserWhereInput = {};
 
   if (input.userId) {
     where.id = input.userId;
@@ -77,13 +78,16 @@ export async function listSchedulesHandler(prisma: PrismaClient, input: ListSche
 
   if (!targetUserId) {
     if (input.email || input.username) {
+      // An empty object inside OR matches every row, so only push clauses that are actually defined
+      const identityClauses: Prisma.UserWhereInput[] = [];
+      if (input.email) {
+        identityClauses.push({ email: { equals: input.email, mode: "insensitive" } });
+      }
+      if (input.username) {
+        identityClauses.push({ username: input.username });
+      }
       const user = await prisma.user.findFirst({
-        where: {
-          OR: [
-            input.email ? { email: { equals: input.email, mode: "insensitive" } } : {},
-            input.username ? { username: input.username } : {},
-          ],
-        },
+        where: { OR: identityClauses },
         select: { id: true },
       });
       if (user) {

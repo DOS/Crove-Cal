@@ -370,6 +370,8 @@ const nextConfig = (phase: string): NextConfig => {
     },
     async headers() {
       const { orgSlug } = nextJsOrgRewriteConfig;
+      const IS_DEV = process.env.NODE_ENV !== "production";
+
       const CORP_CROSS_ORIGIN_HEADER = {
         key: "Cross-Origin-Resource-Policy",
         value: "cross-origin",
@@ -380,6 +382,48 @@ const nextConfig = (phase: string): NextConfig => {
         value: "*",
       };
 
+      // Why: Next/Vercel inline bootstrap + hydration scripts require 'unsafe-inline', so the
+      // always-on baseline keeps it. This stays compatible with the opt-in nonce policy
+      // (lib/csp.ts) because browsers intersect multiple CSP headers — nonce'd scripts pass
+      // both policies. 'unsafe-eval' is dev-only (HMR/React refresh).
+      const SCRIPT_SRC = IS_DEV ? "'self' 'unsafe-inline' 'unsafe-eval'" : "'self' 'unsafe-inline'";
+
+      const buildCspValue = (frameAncestors: string): string =>
+        [
+          `script-src ${SCRIPT_SRC}`,
+          // 'unsafe-inline' required by Next itself (style hardening is opt-in only and throws in prod, see CSP_POLICY check above)
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+          "font-src 'self' https://fonts.gstatic.com",
+          "img-src 'self' data: blob:",
+          `frame-ancestors ${frameAncestors}`,
+          "object-src 'none'",
+          "base-uri 'self'",
+        ].join("; ");
+
+      const CONTENT_SECURITY_POLICY_HEADER = {
+        key: "Content-Security-Policy",
+        value: buildCspValue("'self'"),
+      };
+
+      // Why: booking embed pages are designed to be iframed by customer sites
+      // (the /embed/embed.js integration) — this later-matching rule overrides
+      // frame-ancestors for them, the same way the cal.com-host rule below
+      // overrides Referrer-Policy.
+      const EMBED_CONTENT_SECURITY_POLICY_HEADER = {
+        key: "Content-Security-Policy",
+        value: buildCspValue("*"),
+      };
+
+      const FRAME_ANCESTORS_NONE_HEADER = {
+        key: "Content-Security-Policy",
+        value: "frame-ancestors 'none'",
+      };
+
+      const PERMISSIONS_POLICY_HEADER = {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      };
+
       return [
         {
           source: "/auth/:path*",
@@ -388,6 +432,10 @@ const nextConfig = (phase: string): NextConfig => {
               key: "X-Frame-Options",
               value: "DENY",
             },
+            // Why: CSP equivalent of the X-Frame-Options DENY above — browsers prefer
+            // frame-ancestors when both are present, so this keeps auth pages unframed
+            // instead of letting the catch-all policy below relax them to 'self'
+            FRAME_ANCESTORS_NONE_HEADER,
           ],
         },
         {
@@ -397,6 +445,7 @@ const nextConfig = (phase: string): NextConfig => {
               key: "X-Frame-Options",
               value: "DENY",
             },
+            FRAME_ANCESTORS_NONE_HEADER,
           ],
         },
         {
@@ -410,8 +459,28 @@ const nextConfig = (phase: string): NextConfig => {
               key: "Referrer-Policy",
               value: "strict-origin-when-cross-origin",
             },
+            CONTENT_SECURITY_POLICY_HEADER,
+            PERMISSIONS_POLICY_HEADER,
           ],
         },
+        {
+          source: "/:path*/embed",
+          headers: [EMBED_CONTENT_SECURITY_POLICY_HEADER],
+        },
+        ...(IS_DEV
+          ? []
+          : [
+              {
+                source: "/:path*",
+                // Why: HSTS only matters over TLS — prod serves HTTPS, dev is http://localhost
+                headers: [
+                  {
+                    key: "Strict-Transport-Security",
+                    value: "max-age=63072000; includeSubDomains; preload",
+                  },
+                ],
+              },
+            ]),
         {
           source: "/embed/embed.js",
           headers: [CORP_CROSS_ORIGIN_HEADER],

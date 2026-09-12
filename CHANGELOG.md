@@ -4,6 +4,28 @@ All notable changes to the **Crove Cal** platform will be documented in this fil
 
 ---
 
+## [2.3.0] - 2026-09-08
+
+### Security
+- **Upstream Sync (cal.diy main, 7 fixes)**: HitPay/PayPal zero-decimal currency charging (VND/JPY/KRW were billed at 1% of price), `tempOrgRedirect` writes inside the `updateUser` transaction, CalVideoSettings API defaults, i18n (ja/pl), removal of unused `TokenHandler`.
+- **Authentication**: removed hardcoded DOS.Me OIDC client id/secret fallbacks; `dos-id` provider registers only when OIDC credentials are configured; JWT `update` callback re-anchors identity to `token.sub` instead of client-supplied `session.email`; JIT provisioning no longer adopts organizations by slug and caps claim-derived roles at MEMBER.
+- **Webhooks**: `brevo` and `crove-crm` routes require HMAC-SHA256 signatures (`timingSafeEqual`, fail-closed) with a 50-attendee cap; `dos-org-sync` requires a dedicated `DOS_SYNC_WEBHOOK_SECRET`, rejects stale timestamps and replayed delivery ids, and scopes `team.deleted` to the parent organization; `/api/webhooks/health` requires a session (POST requires ADMIN); `/api/health` no longer echoes raw database errors.
+- **Authorization**: Teams/Organizations endpoints enforce accepted membership (member rosters with email addresses no longer leak to non-members); ADMIN can no longer evict the OWNER or self-grant OWNER; last-OWNER protection; `inviteMember` records a real verification token and answers with an opaque status; Workflows enforce team membership and scope mutations to the owner.
+- **Database**: TLS certificate verification defaults to on (`DATABASE_SSL_REJECT_UNAUTHORIZED=false` opts out); fixed a pg pool leak in the api/v2 non-pool branch; added migration recreating the Workflow tables dropped by upstream `20260319000000_drop_workflow_tables` (fixes `P2021` and the `/workflows` 500).
+- **Dependencies (Dependabot)**: bumped `next` 16.2.11, `next-auth` 4.24.15, `tar` 7.5.21, `websocket-driver` 0.7.5, `axios` 1.16.0, `hono` 4.12.25, `vite` 6.4.3, `protobufjs` 7.5.6, `@xmldom/xmldom`, `brace-expansion`; added `.github/dependabot.yml`.
+
+### Fixed
+- Cross-user cache leak on `/event-types/[type]` (`unstable_cache` keyed on headers/cookies objects that serialize to constants, so every user shared one entry and the router authorization never ran).
+- `turbo.json` `post-install` ordering (`dependsOn: ["^post-install"]`) with upstream `permissions.ts` restored — fixes the intermittent TS2305 `PLATFORM_PERMISSION` failure during `yarn install`.
+- `/teams` renders real strings instead of raw i18n keys (`create_a_team`, `no_teams_yet`, `team_created_successfully`, `create_team_description`).
+- MCP server: removed the "first available user" ownership fallback and the empty-`OR` schedule lookup that returned another tenant's schedule; added a `type-check` script (fixed 6 latent Prisma typing errors).
+- `crovecrm` declares its workspace dependencies; husky install failures are no longer silently swallowed; `return` added before `redirect()` in two pages; webhook monitor shared across processes with honest delivery reporting.
+
+### Docs
+- Added `docs/audit/2026-09-08-audit-report.html` — full-repo audit report (76 findings with IDs, priorities, fix status table).
+
+---
+
 ## [2.2.0] - 2026-09-03
 
 ### Added

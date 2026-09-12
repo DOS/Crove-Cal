@@ -81,6 +81,7 @@ export class BrevoService {
           accept: "application/json",
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(5000),
       });
 
       // 201 Created or 204 No Content (when updateEnabled is true) are both successes
@@ -133,6 +134,7 @@ export class BrevoService {
           accept: "application/json",
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(5000),
       });
 
       if (response.ok || response.status === 204 || response.status === 201) {

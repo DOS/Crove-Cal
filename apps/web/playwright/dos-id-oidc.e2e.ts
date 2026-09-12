@@ -76,7 +76,7 @@ test.describe("[Crove OS E2E]: DOS ID OIDC Login, App Switcher & Realtime Webhoo
 
     const signature = generateSignature(
       pingPayload,
-      process.env.DOS_SYNC_WEBHOOK_SECRET || process.env.OIDC_CLIENT_SECRET || WEBHOOK_SECRET
+      process.env.CROVE_CAL_DOS_WEBHOOK_SECRET || process.env.DOS_SYNC_WEBHOOK_SECRET || WEBHOOK_SECRET
     );
 
     const pingRes = await request.post("/api/webhooks/dos-org-sync", {

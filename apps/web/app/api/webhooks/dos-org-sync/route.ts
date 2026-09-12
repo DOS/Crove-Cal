@@ -78,13 +78,45 @@ function verifyHmacSignature(rawBody: string, signatureHeader: string | null, se
   return timingSafeEqual(sigBuffer, expectedBuffer);
 }
 
+const REPLAY_WINDOW_MS = 300_000;
+
+function isTimestampFresh(timestamp: string | null): boolean {
+  if (!timestamp) return false;
+  const asNumber = Number(timestamp);
+  const timestampMs = Number.isFinite(asNumber) ? (asNumber > 1e12 ? asNumber : asNumber * 1000) : Date.parse(timestamp);
+  if (!Number.isFinite(timestampMs)) return false;
+  return Math.abs(Date.now() - timestampMs) <= REPLAY_WINDOW_MS;
+}
+
+const MAX_TRACKED_DELIVERIES = 1000;
+const recentDeliveryIds = new Map<string, number>();
+
+function isDuplicateDelivery(deliveryId: string): boolean {
+  if (recentDeliveryIds.has(deliveryId)) {
+    return true;
+  }
+  if (recentDeliveryIds.size >= MAX_TRACKED_DELIVERIES) {
+    // Map preserves insertion order, so the first key is the oldest entry
+    const oldest = recentDeliveryIds.keys().next();
+    if (!oldest.done && oldest.value !== undefined) {
+      recentDeliveryIds.delete(oldest.value);
+    }
+  }
+  recentDeliveryIds.set(deliveryId, Date.now());
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   let eventName = "unknown";
   try {
     const rawBody = await req.text();
     const signature = req.headers.get("x-dos-signature");
-    const secret = process.env.DOS_SYNC_WEBHOOK_SECRET || process.env.OIDC_CLIENT_SECRET;
+    // Why: product-prefixed name matches the GCP Secret Manager convention shared
+    // with the other Crove apps (CROVE_SIGN_DOS_WEBHOOK_SECRET, CROVE_CRM_WEBHOOK_SECRET),
+    // so each product holds its own signing key and one leak cannot forge another's events.
+    // The unprefixed name is kept as a fallback for deployments that already set it.
+    const secret = process.env.CROVE_CAL_DOS_WEBHOOK_SECRET || process.env.DOS_SYNC_WEBHOOK_SECRET;
 
     if (!secret) {
       webhookMonitor.recordDelivery({
@@ -116,9 +148,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const deliveryId = req.headers.get("x-dos-delivery");
+    if (deliveryId && isDuplicateDelivery(deliveryId)) {
+      webhookMonitor.recordDelivery({
+        source: "dos-org-sync",
+        event: "error.duplicate_delivery",
+        status: 409,
+        latencyMs: Date.now() - startTime,
+        success: false,
+        error: `Duplicate delivery id: ${deliveryId}`,
+      });
+      return NextResponse.json({ error: "Duplicate delivery" }, { status: 409, headers: corsHeaders });
+    }
+
     const payload: DosWebhookPayload = JSON.parse(rawBody);
     const { event, data } = payload;
     eventName = event;
+
+    if (!isTimestampFresh(payload.timestamp || req.headers.get("x-dos-timestamp"))) {
+      webhookMonitor.recordDelivery({
+        source: "dos-org-sync",
+        event: eventName,
+        status: 401,
+        latencyMs: Date.now() - startTime,
+        success: false,
+        error: "Missing or stale timestamp (possible replay)",
+      });
+      return NextResponse.json(
+        { error: "Invalid or stale timestamp" },
+        { status: 401, headers: corsHeaders }
+      );
+    }
 
     if (event === "test.ping" || event === "ping") {
       webhookMonitor.recordDelivery({
@@ -222,66 +282,45 @@ export async function POST(req: NextRequest) {
       case "organization.member_added":
       case "organization.member.added":
       case "org.member_added": {
-        let team = await prisma.team.findFirst({
-          where: {
-            isOrganization: true,
-            metadata: { path: ["dosOrgId"], equals: orgId },
-          },
-          select: { id: true },
-        });
-
-        if (!team) {
-          let uniqueSlug = orgSlug;
-          const existingSlugTeam = await prisma.team.findFirst({
-            where: { slug: uniqueSlug },
+        // The case performs several dependent writes (org team, user, membership, profile,
+        // user organizationId); a transaction keeps them from landing half-applied.
+        await prisma.$transaction(async (tx) => {
+          let team = await tx.team.findFirst({
+            where: {
+              isOrganization: true,
+              metadata: { path: ["dosOrgId"], equals: orgId },
+            },
             select: { id: true },
           });
 
-          if (existingSlugTeam) {
-            uniqueSlug = `${orgSlug}-${Math.random().toString(36).substring(2, 6)}`;
+          if (!team) {
+            let uniqueSlug = orgSlug;
+            const existingSlugTeam = await tx.team.findFirst({
+              where: { slug: uniqueSlug },
+              select: { id: true },
+            });
+
+            if (existingSlugTeam) {
+              uniqueSlug = `${orgSlug}-${Math.random().toString(36).substring(2, 6)}`;
+            }
+
+            team = await tx.team.create({
+              data: {
+                name: orgName,
+                slug: uniqueSlug,
+                isOrganization: true,
+                metadata: {
+                  dosOrgId: orgId,
+                },
+              },
+              select: { id: true },
+            });
           }
 
-          team = await prisma.team.create({
-            data: {
-              name: orgName,
-              slug: uniqueSlug,
-              isOrganization: true,
-              metadata: {
-                dosOrgId: orgId,
-              },
-            },
-            select: { id: true },
-          });
-        }
-
-        if (data.user_email) {
-          let user = await prisma.user.findFirst({
-            where: {
-              email: {
-                equals: data.user_email,
-                mode: "insensitive",
-              },
-            },
-            select: {
-              id: true,
-              email: true,
-              username: true,
-              organizationId: true,
-            },
-          });
-
-          if (!user) {
-            const newUsername =
-              slugify(data.user_name || data.user_email.split("@")[0]) +
-              `-${Math.random().toString(36).substring(2, 6)}`;
-            user = await prisma.user.create({
-              data: {
-                email: data.user_email,
-                name: data.user_name || data.user_email.split("@")[0],
-                username: newUsername,
-                emailVerified: new Date(),
-                organizationId: team.id,
-              },
+          if (data.user_email) {
+            const userEmail = data.user_email.toLowerCase().trim();
+            let user = await tx.user.findUnique({
+              where: { email: userEmail },
               select: {
                 id: true,
                 email: true,
@@ -289,61 +328,82 @@ export async function POST(req: NextRequest) {
                 organizationId: true,
               },
             });
-          }
 
-          const rawRole = (data.role || "").toUpperCase();
-          const membershipRole =
-            rawRole === "OWNER"
-              ? MembershipRole.OWNER
-              : rawRole === "ADMIN"
-                ? MembershipRole.ADMIN
-                : MembershipRole.MEMBER;
+            if (!user) {
+              const newUsername =
+                slugify(data.user_name || userEmail.split("@")[0]) +
+                `-${Math.random().toString(36).substring(2, 6)}`;
+              user = await tx.user.create({
+                data: {
+                  email: userEmail,
+                  name: data.user_name || userEmail.split("@")[0],
+                  username: newUsername,
+                  emailVerified: new Date(),
+                  organizationId: team.id,
+                },
+                select: {
+                  id: true,
+                  email: true,
+                  username: true,
+                  organizationId: true,
+                },
+              });
+            }
 
-          await prisma.membership.upsert({
-            where: {
-              userId_teamId: {
+            const rawRole = (data.role || "").toUpperCase();
+            const membershipRole =
+              rawRole === "OWNER"
+                ? MembershipRole.OWNER
+                : rawRole === "ADMIN"
+                  ? MembershipRole.ADMIN
+                  : MembershipRole.MEMBER;
+
+            await tx.membership.upsert({
+              where: {
+                userId_teamId: {
+                  userId: user.id,
+                  teamId: team.id,
+                },
+              },
+              create: {
                 userId: user.id,
                 teamId: team.id,
+                role: membershipRole,
+                accepted: true,
               },
-            },
-            create: {
-              userId: user.id,
-              teamId: team.id,
-              role: membershipRole,
-              accepted: true,
-            },
-            update: {
-              role: membershipRole,
-              accepted: true,
-            },
-          });
+              update: {
+                role: membershipRole,
+                accepted: true,
+              },
+            });
 
-          const orgUsername = user.username || user.email.split("@")[0];
-          await prisma.profile.upsert({
-            create: {
-              uid: ProfileRepository.generateProfileUid(),
-              userId: user.id,
-              organizationId: team.id,
-              username: orgUsername,
-            },
-            update: {
-              username: orgUsername,
-            },
-            where: {
-              userId_organizationId: {
+            const orgUsername = user.username || user.email.split("@")[0];
+            await tx.profile.upsert({
+              create: {
+                uid: ProfileRepository.generateProfileUid(),
                 userId: user.id,
                 organizationId: team.id,
+                username: orgUsername,
               },
-            },
-          });
-
-          if (!user.organizationId) {
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { organizationId: team.id },
+              update: {
+                username: orgUsername,
+              },
+              where: {
+                userId_organizationId: {
+                  userId: user.id,
+                  organizationId: team.id,
+                },
+              },
             });
+
+            if (!user.organizationId) {
+              await tx.user.update({
+                where: { id: user.id },
+                data: { organizationId: team.id },
+              });
+            }
           }
-        }
+        });
         break;
       }
 
@@ -359,13 +419,8 @@ export async function POST(req: NextRequest) {
         });
 
         if (team && data.user_email) {
-          const user = await prisma.user.findFirst({
-            where: {
-              email: {
-                equals: data.user_email,
-                mode: "insensitive",
-              },
-            },
+          const user = await prisma.user.findUnique({
+            where: { email: data.user_email.toLowerCase().trim() },
             select: { id: true },
           });
 
@@ -455,12 +510,25 @@ export async function POST(req: NextRequest) {
       case "team.deleted": {
         const teamId = data.team_id ? String(data.team_id) : undefined;
         if (teamId) {
-          await prisma.team.deleteMany({
+          // The team must belong to the event's org, otherwise a team_id from another
+          // org could be deleted by replaying/forging an event for a different org_id.
+          const parentOrg = await prisma.team.findFirst({
             where: {
-              isOrganization: false,
-              metadata: { path: ["dosTeamId"], equals: teamId },
+              isOrganization: true,
+              metadata: { path: ["dosOrgId"], equals: orgId },
             },
+            select: { id: true },
           });
+
+          if (parentOrg) {
+            await prisma.team.deleteMany({
+              where: {
+                isOrganization: false,
+                parentId: parentOrg.id,
+                metadata: { path: ["dosTeamId"], equals: teamId },
+              },
+            });
+          }
         }
         break;
       }
@@ -479,8 +547,8 @@ export async function POST(req: NextRequest) {
           : null;
 
         if (childTeam && data.user_email) {
-          const user = await prisma.user.findFirst({
-            where: { email: { equals: data.user_email, mode: "insensitive" } },
+          const user = await prisma.user.findUnique({
+            where: { email: data.user_email.toLowerCase().trim() },
             select: { id: true },
           });
 
@@ -526,8 +594,8 @@ export async function POST(req: NextRequest) {
             select: { id: true },
           });
 
-          const user = await prisma.user.findFirst({
-            where: { email: { equals: data.user_email, mode: "insensitive" } },
+          const user = await prisma.user.findUnique({
+            where: { email: data.user_email.toLowerCase().trim() },
             select: { id: true },
           });
 

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "ts-node --transpile-only src/index.ts",
+    "type-check": "tsc --pretty --noEmit",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write ."
   },
