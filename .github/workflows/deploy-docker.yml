@@ -55,7 +55,12 @@ jobs:
             NEXTAUTH_SECRET=build-time-placeholder-not-used-at-runtime
             CALENDSO_ENCRYPTION_KEY=build-time-placeholder-not-used-at-runtime
             NEXT_PUBLIC_WEBAPP_URL=https://cal.crove.com
-            NEXT_PUBLIC_API_V2_URL=http://localhost:5555/api/v2
+            # next.config.ts bakes this into a server-side rewrite at build time, so it must be
+            # reachable from inside the web container. "localhost" resolved to the web container
+            # itself, where nothing listens on 5555, leaving every /api/v2/* call dead. The API v2
+            # service is published as "calcom-api" on the shared compose network (API_PORT default
+            # 5555, see apps/api/v2/src/config/app.ts). Rebuild the image if the service is renamed.
+            NEXT_PUBLIC_API_V2_URL=http://calcom-api:5555/api/v2
             NEXT_PUBLIC_LICENSE_CONSENT=agree
             NEXT_PUBLIC_APP_NAME=Crove
             NEXT_PUBLIC_COMPANY_NAME=MetaDOS LLC
