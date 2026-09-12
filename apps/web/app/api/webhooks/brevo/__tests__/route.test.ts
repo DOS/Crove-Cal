@@ -9,7 +9,7 @@ let mockIsConfigured = true;
 const WEBHOOK_SECRET = "brevo-webhook-test-secret";
 const SIGNATURE_HEADER = "x-webhook-signature";
 
-vi.mock("@calcom/features/brevo", () => {
+vi.mock("@calcom/features/brevo/brevoService", () => {
   return {
     BrevoService: class MockBrevoService {
       isConfigured = () => mockIsConfigured;

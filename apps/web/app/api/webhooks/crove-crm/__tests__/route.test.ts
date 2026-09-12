@@ -10,7 +10,7 @@ const mockMethods = {
 const WEBHOOK_SECRET = "crove-crm-webhook-test-secret";
 const SIGNATURE_HEADER = "x-webhook-signature";
 
-vi.mock("@calcom/features/crove-crm", () => {
+vi.mock("@calcom/features/crove-crm/croveCrmService", () => {
   return {
     CroveCrmService: class MockCroveCrmService {
       isConfigured() {
