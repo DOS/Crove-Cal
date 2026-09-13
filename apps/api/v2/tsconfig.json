@@ -3,7 +3,7 @@
     "ignoreDeprecations": "6.0",
     "module": "commonjs",
     "esModuleInterop": true,
-    "declaration": true,
+    "declaration": false,
     "resolveJsonModule": true,
     "removeComments": true,
     "emitDecoratorMetadata": true,
