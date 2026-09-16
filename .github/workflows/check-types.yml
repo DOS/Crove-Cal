@@ -16,6 +16,9 @@ jobs:
           sparse-checkout: .github
       - uses: ./.github/actions/cache-checkout
       - uses: ./.github/actions/yarn-install
+      # The fork untracks app-store generated files (audit MD-02); regenerate
+      # them after install or every type-check dies on missing imports.
+      - run: yarn app-store:build
       - name: Show info
         run: node -e "console.log(require('v8').getHeapStatistics())"
       - name: Configure TSC problem matcher

@@ -16,6 +16,9 @@ jobs:
           sparse-checkout: .github
       - uses: ./.github/actions/cache-checkout
       - uses: ./.github/actions/yarn-install
+      # The fork untracks app-store generated files (audit MD-02); regenerate
+      # them after install or the test suite dies on missing imports.
+      - run: yarn app-store:build
       - run: yarn prisma generate
       - run: yarn test -- --no-isolate
       # We could add different timezones here that we need to run our tests in

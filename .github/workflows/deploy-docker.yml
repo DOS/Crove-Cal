@@ -12,7 +12,15 @@ permissions:
   packages: write
 
 jobs:
+  # Why: this workflow publishes :latest on every push. Without a gate the image
+  # ships untested code straight to the registry (audit finding HI-09).
+  ci-gate:
+    name: CI gate (type check)
+    uses: ./.github/workflows/check-types.yml
+    secrets: inherit
+
   build-and-push:
+    needs: ci-gate
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
