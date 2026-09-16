@@ -101,13 +101,20 @@ WORKDIR /calcom
 
 RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd wget && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder-two /calcom ./
+# Why --chown: the container runs as the non-root node user (USER below); owning
+# the tree lets the runtime write its caches (Next ISR, prisma engines) without
+# adding a duplicate copy-up layer that a separate chown -R would create.
+COPY --from=builder-two --chown=node:node /calcom ./
 ARG NEXT_PUBLIC_WEBAPP_URL=https://cal.crove.com
 ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
   BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL
 
 ENV NODE_ENV=production
 EXPOSE 3000
+
+# HI-12: run as the unprivileged node user (uid 1000) shipped with the base
+# image instead of root; apt above already ran as root.
+USER node
 
 HEALTHCHECK --interval=30s --timeout=30s --retries=5 \
   CMD wget --spider http://localhost:3000 || exit 1
