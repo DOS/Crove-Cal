@@ -9,6 +9,7 @@
     "module": "ESNext",
     "declaration": true,
     "outDir": "dist",
+    "types": ["node"],
     "paths": {
       "@calcom/embed-core": ["../embed-core/src"],
       "@calcom/embed-react": ["../embed-react/src"]
