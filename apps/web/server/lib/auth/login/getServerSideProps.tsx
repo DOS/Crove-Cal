@@ -14,6 +14,9 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   const session = await getServerSession({ req });
 
   const verifyJwt = (jwt: string) => {
+    // A missing key would encode to a zero-length secret, which jose happily
+    // verifies against - fail loudly instead (same pattern as next.config.ts).
+    if (!process.env.CALENDSO_ENCRYPTION_KEY) throw new Error("Please set CALENDSO_ENCRYPTION_KEY");
     const secret = new TextEncoder().encode(process.env.CALENDSO_ENCRYPTION_KEY);
 
     return jwtVerify(jwt, secret, {
