@@ -14,8 +14,11 @@ export const verifyCodeUnAuthenticated = async (email: string, code: string) => 
     identifier: `emailVerifyCode.${hashEmail(email)}`,
   });
 
+  // A missing key would degrade the seed to a pure function of the victim
+  // email (audit LO-05); fail loudly instead (same pattern as next.config.ts).
+  if (!process.env.CALENDSO_ENCRYPTION_KEY) throw new Error("Please set CALENDSO_ENCRYPTION_KEY");
   const secret = createHash("md5")
-    .update(email + (process.env.CALENDSO_ENCRYPTION_KEY || ""))
+    .update(email + process.env.CALENDSO_ENCRYPTION_KEY)
     .digest("hex");
 
   const isValidToken = totpRawCheck(code, secret, { step: 900 });
