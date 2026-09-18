@@ -65,6 +65,23 @@ const shouldEnforceCsp = (url: URL) => {
   return url.pathname.startsWith("/auth/login") || url.pathname.startsWith("/login");
 };
 
+// Mirror of the registration gate in packages/features/auth (next-auth-options):
+// the dos-id provider only exists when both credentials are configured. The
+// NEXT_PUBLIC login flag alone is not enough - redirecting to an unregistered
+// provider would make signIn fail.
+const isDosIdProviderConfigured = () =>
+  !!(
+    (process.env.OIDC_CLIENT_ID || "").trim() &&
+    (process.env.OIDC_CLIENT_SECRET || process.env.CROVE_OAUTH_CLIENT_SECRET || "").trim()
+  );
+
+const isLoginPath = (url: URL) => url.pathname === "/auth/login" || url.pathname === "/login";
+
+// ?direct=1 keeps the classic form reachable as the break-glass path when the
+// identity provider is unreachable or an admin needs a local sign-in.
+export const shouldRedirectToDosIdSso = (url: URL) =>
+  isDosIdProviderConfigured() && isLoginPath(url) && url.searchParams.get("direct") !== "1";
+
 const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
   const url = req.nextUrl;
   const reqWithEnrichedHeaders = enrichRequestWithHeaders({ req });
@@ -77,6 +94,15 @@ const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
       // TODO: Consider using responseWithHeaders here
       return NextResponse.json({ error: "Signup is disabled" }, { status: 503 });
     }
+  }
+
+  // Single-IdP deployments skip the login form entirely: hop to /auth/sso which
+  // starts the next-auth dos-id flow (CSRF/state handled by next-auth).
+  if (shouldRedirectToDosIdSso(url)) {
+    const ssoUrl = new URL("/auth/sso", reqWithEnrichedHeaders.url);
+    const callbackUrl = url.searchParams.get("callbackUrl");
+    if (callbackUrl) ssoUrl.searchParams.set("callbackUrl", callbackUrl);
+    return NextResponse.redirect(ssoUrl);
   }
 
   if (url.pathname.startsWith("/apps/installed")) {
