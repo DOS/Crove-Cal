@@ -311,6 +311,10 @@ describe("Middleware Integration Tests", () => {
   describe("CSP Headers", () => {
     beforeEach(() => {
       vi.stubEnv("CSP_POLICY", "strict");
+      // Keep these tests independent of any local .env that configures dos-id,
+      // otherwise /auth/login would take the auto-SSO redirect instead.
+      vi.stubEnv("OIDC_CLIENT_ID", "");
+      vi.stubEnv("OIDC_CLIENT_SECRET", "");
     });
 
     afterEach(() => {
@@ -342,7 +346,9 @@ describe("Middleware Integration Tests", () => {
     });
 
     it("should add x-csp-status when CSP_POLICY not set", async () => {
-      vi.unstubAllEnvs();
+      // Unset only CSP_POLICY; keep the OIDC stubs from beforeEach so this test
+      // stays independent of any local dos-id configuration.
+      vi.stubEnv("CSP_POLICY", "");
 
       const req = createTestRequest({
         url: `${WEBAPP_URL}/auth/login`,
@@ -438,6 +444,67 @@ describe("Middleware Integration Tests", () => {
       const res = await callProxy(req);
       expect(res).toBeDefined();
     });
+  });
+});
+
+describe("DOS ID auto-SSO redirect", () => {
+  beforeEach(() => {
+    vi.stubEnv("OIDC_CLIENT_ID", "test-client-id");
+    vi.stubEnv("OIDC_CLIENT_SECRET", "test-client-secret");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("redirects /auth/login to /auth/sso when the dos-id provider is configured", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/login` });
+
+    const res = await callProxy(req);
+    expectStatus(res, 307);
+    const location = getHeader(res, "location") || "";
+    expect(location).toContain("/auth/sso");
+  });
+
+  it("forwards callbackUrl to the SSO bridge", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/login?callbackUrl=%2Fbooking%2F1` });
+
+    const res = await callProxy(req);
+    const location = getHeader(res, "location") || "";
+    expect(location).toContain("/auth/sso");
+    expect(location).toContain("callbackUrl=%2Fbooking%2F1");
+  });
+
+  it("keeps the classic form for ?direct=1 (break-glass)", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/login?direct=1` });
+
+    const res = await callProxy(req);
+    expect(getHeader(res, "x-middleware-next")).toBe("1");
+  });
+
+  it("does not redirect when the dos-id provider is not configured", async () => {
+    vi.stubEnv("OIDC_CLIENT_ID", "");
+    vi.stubEnv("OIDC_CLIENT_SECRET", "");
+
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/login` });
+
+    const res = await callProxy(req);
+    expect(getHeader(res, "x-middleware-next")).toBe("1");
+  });
+
+  it("does not redirect non-login paths", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/logout` });
+
+    const res = await callProxy(req);
+    expect(getHeader(res, "x-middleware-next")).toBe("1");
+  });
+
+  it("also covers the legacy /login alias", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/login` });
+
+    const res = await callProxy(req);
+    expectStatus(res, 307);
+    expect(getHeader(res, "location")).toContain("/auth/sso");
   });
 });
 
