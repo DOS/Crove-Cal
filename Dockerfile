@@ -105,6 +105,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends netcat-openbsd 
 # the tree lets the runtime write its caches (Next ISR, prisma engines) without
 # adding a duplicate copy-up layer that a separate chown -R would create.
 COPY --from=builder-two --chown=node:node /calcom ./
+# WORKDIR created /calcom itself as root-owned, so the node user cannot create
+# turbo's runtime cache dir there - `yarn start` (turbo run start) died with
+# "failed to create directory /calcom/.turbo" and crash-looped the container.
+RUN mkdir -p /calcom/.turbo && chown node:node /calcom/.turbo
 ARG NEXT_PUBLIC_WEBAPP_URL=https://cal.crove.com
 ENV NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL \
   BUILT_NEXT_PUBLIC_WEBAPP_URL=$NEXT_PUBLIC_WEBAPP_URL
