@@ -506,6 +506,31 @@ describe("DOS ID auto-SSO redirect", () => {
     expectStatus(res, 307);
     expect(getHeader(res, "location")).toContain("/auth/sso");
   });
+
+  it("does not bounce again when the loop guard cookie is present", async () => {
+    const req = createTestRequest({
+      url: `${WEBAPP_URL}/auth/login`,
+      cookies: { "dos-sso-attempted": "1" },
+    });
+
+    const res = await callProxy(req);
+    // Classic form renders instead of an infinite login->sso reload loop.
+    expect(getHeader(res, "x-middleware-next")).toBe("1");
+  });
+
+  it("sets the loop guard cookie on the first SSO redirect", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/login` });
+
+    const res = await callProxy(req);
+    // The mocked NextResponse.redirect does not serialize cookies into headers,
+    // so assert on the cookie API call the middleware made instead.
+    const setMock = (res as unknown as { cookies: { set: Mock } }).cookies.set;
+    expect(setMock).toHaveBeenCalledWith(
+      "dos-sso-attempted",
+      "1",
+      expect.objectContaining({ maxAge: 120 })
+    );
+  });
 });
 
 describe("Middleware Matcher Configuration", () => {
