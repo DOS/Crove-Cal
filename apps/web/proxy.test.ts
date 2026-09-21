@@ -475,6 +475,24 @@ describe("DOS ID auto-SSO redirect", () => {
     expect(location).toContain("callbackUrl=%2Fbooking%2F1");
   });
 
+  it("wraps a bare invite token into the signup callbackUrl", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/login?token=INVITE123` });
+
+    const res = await callProxy(req);
+    const location = getHeader(res, "location") || "";
+    expect(location).toContain("callbackUrl=%2Fauth%2Fsignup%3Ftoken%3DINVITE123");
+  });
+
+  it("appends the invite token to an existing callbackUrl", async () => {
+    const req = createTestRequest({
+      url: `${WEBAPP_URL}/auth/login?callbackUrl=%2Fteams&token=INVITE123`,
+    });
+
+    const res = await callProxy(req);
+    const location = getHeader(res, "location") || "";
+    expect(location).toContain("callbackUrl=%2Fteams%3Ftoken%3DINVITE123");
+  });
+
   it("keeps the classic form for ?direct=1 (break-glass)", async () => {
     const req = createTestRequest({ url: `${WEBAPP_URL}/auth/login?direct=1` });
 

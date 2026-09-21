@@ -28,6 +28,23 @@ const readMetadataId = (metadata: unknown, key: "dosOrgId" | "dosTeamId"): strin
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 };
 
+/**
+ * Deployment-configured bootstrap admins (ADMIN_EMAILS, comma separated). This is the
+ * admin break-glass for JIT provisioning: without it, a fresh deployment where every
+ * account is provisioned via DOS ID can never produce its first ADMIN, because JIT
+ * roles are capped at MEMBER and there is no password signup to promote from.
+ * Explicitly configured emails are trusted above the MEMBER cap, but are capped at
+ * ADMIN themselves - OWNER still has to come from a verified DOS.Me claim.
+ */
+export const getBootstrapAdminRole = (email: string | null): MembershipRole | null => {
+  const adminEmails = (process.env.ADMIN_EMAILS || "")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  if (!email || adminEmails.length === 0) return null;
+  return adminEmails.includes(email.trim().toLowerCase()) ? MembershipRole.ADMIN : null;
+};
+
 export async function syncDosOrganizations(
   userId: number,
   organizations?: DosOrgClaim[],
@@ -168,15 +185,18 @@ export async function syncDosOrganizations(
 
       // Elevated roles are only trusted when the claim's verified id matches the org's own
       // dosOrgId; slug-fallback matches (unverified org identity) are capped at MEMBER.
+      // ADMIN_EMAILS is the bootstrap-admin break-glass (see getBootstrapAdminRole).
       const orgRoleVerified = orgId !== "" && readMetadataId(orgTeam.metadata, "dosOrgId") === orgId;
       const rawRole = (org.role || "").toUpperCase();
-      const membershipRole = !orgRoleVerified
-        ? MembershipRole.MEMBER
-        : rawRole === "OWNER"
-          ? MembershipRole.OWNER
-          : rawRole === "ADMIN" || rawRole === "LEAD"
-            ? MembershipRole.ADMIN
-            : MembershipRole.MEMBER;
+      const membershipRole =
+        getBootstrapAdminRole(user.email) ??
+        (!orgRoleVerified
+          ? MembershipRole.MEMBER
+          : rawRole === "OWNER"
+            ? MembershipRole.OWNER
+            : rawRole === "ADMIN" || rawRole === "LEAD"
+              ? MembershipRole.ADMIN
+              : MembershipRole.MEMBER);
 
       await prisma.membership.upsert({
         where: {
@@ -294,14 +314,17 @@ export async function syncDosOrganizations(
 
       // Elevated roles only when the claim's verified id matches the team's own dosTeamId;
       // slug-fallback matches (unverified team identity) are capped at MEMBER.
+      // ADMIN_EMAILS is the bootstrap-admin break-glass (see getBootstrapAdminRole).
       const subTeamRoleVerified =
         subTeamId !== "" && readMetadataId(childTeam.metadata, "dosTeamId") === subTeamId;
       const rawRole = (subTeam.role || "").toUpperCase();
-      const teamRole = !subTeamRoleVerified
-        ? MembershipRole.MEMBER
-        : rawRole === "LEAD" || rawRole === "ADMIN" || rawRole === "OWNER"
-          ? MembershipRole.ADMIN
-          : MembershipRole.MEMBER;
+      const teamRole =
+        getBootstrapAdminRole(user.email) ??
+        (!subTeamRoleVerified
+          ? MembershipRole.MEMBER
+          : rawRole === "LEAD" || rawRole === "ADMIN" || rawRole === "OWNER"
+            ? MembershipRole.ADMIN
+            : MembershipRole.MEMBER);
 
       await prisma.membership.upsert({
         where: {
