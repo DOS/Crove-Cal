@@ -106,8 +106,18 @@ const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
   // starts the next-auth dos-id flow (CSRF/state handled by next-auth).
   if (shouldRedirectToDosIdSso(url) && !req.cookies.get(SSO_LOOP_GUARD_COOKIE)?.value) {
     const ssoUrl = new URL("/auth/sso", reqWithEnrichedHeaders.url);
+    // Carry invite tokens through the SSO hop: after sign-in the user lands back
+    // on the invited page (the next-auth callback then adopts the invited user
+    // by email match), instead of dropping the token on the login redirect.
     const callbackUrl = url.searchParams.get("callbackUrl");
-    if (callbackUrl) ssoUrl.searchParams.set("callbackUrl", callbackUrl);
+    const token = url.searchParams.get("token");
+    let effectiveCallback: string | null = callbackUrl;
+    if (token) {
+      const base = callbackUrl || "/auth/signup";
+      const joiner = base.includes("?") ? "&" : "?";
+      effectiveCallback = `${base}${joiner}token=${encodeURIComponent(token)}`;
+    }
+    if (effectiveCallback) ssoUrl.searchParams.set("callbackUrl", effectiveCallback);
     const redirect = NextResponse.redirect(ssoUrl);
     redirect.cookies.set(SSO_LOOP_GUARD_COOKIE, "1", {
       maxAge: 120,
