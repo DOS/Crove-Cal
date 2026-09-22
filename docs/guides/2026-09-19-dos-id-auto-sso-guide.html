@@ -42,7 +42,7 @@
 <body>
 <header class="top">
   <h1>Guide: DOS ID Auto-SSO - thay trang login bằng redirect sang id.dos.me</h1>
-  <div class="meta">Ngày: <b>2026-09-19</b> &nbsp;·&nbsp; Pattern đã ship: <b>Crove-Cal PR #78 + #79</b> (đang chạy production cal.crove.com) &nbsp;·&nbsp; Áp dụng cho: <b>Crove Desk, Crove CRM, Crove Sign, Crove Post, và mọi app hệ sinh thái DOS</b></div>
+  <div class="meta">Ngày: <b>2026-09-19</b> · cập nhật <b>2026-09-22</b> (Wave 4 + incident secret + break-glass allowlist) &nbsp;·&nbsp; Pattern đã ship: <b>Crove-Cal PR #78, #79, #83, #84, #85</b> (đang chạy production cal.crove.com) &nbsp;·&nbsp; Áp dụng cho: <b>Crove Desk, Crove CRM, Crove Sign, Crove Post, và mọi app hệ sinh thái DOS</b></div>
 </header>
 
 <main>
@@ -161,9 +161,40 @@ cd /opt/crove/&lt;app&gt; &amp;&amp; docker compose up -d --no-deps &lt;service&
     <li><b>Luôn có rollback sẵn trước khi pull.</b> Image cũ vẫn nằm trên server (dangling) - chỉ cần tag lại là quay về trong 30 giây.</li>
     <li><b>Đừng tin "image build xanh = chạy được".</b> Build không phát hiện lỗi permission runtime. Bắt buộc theo dõi <code>docker ps</code> + logs sau mỗi lần up, và chỉ xác nhận xong khi healthcheck healthy.</li>
     <li><b>Redirect phải im lặng khi env thiếu.</b> Môi trường dev/staging chưa có OIDC env phải giữ hành vi cũ (hiện form) - nhờ gate mirror điều kiện đăng ký provider.</li>
+    <li><b>Secret client dùng chung: rotate phải đồng bộ trong MỘT thao tác.</b> Sự cố 2026-09-21: client "Crove" trên Supabase bị rotate ngày 10/09 mà không ai kéo secret mới về server - SSO chết âm thầm trên CẢ Cal/CRM/Sign gần 2 tuần, và <b>không alarm nào vang</b> vì "không có error log" chỉ nghĩa là "không ai login mới". Quy trình bắt buộc từ giờ (xem mục 8).</li>
+    <li><b>Probe token endpoint định kỳ thay vì tin log.</b> POST giả một code vào token endpoint của IdP với secret hiện hành: nhận <code>invalid_grant</code> = credentials hợp lệ (code giả bị chê là đúng thiết kế); nhận <code>invalid client credentials</code> = secret đang sai. Đây là cách phát hiện secret lệch mà không cần ai login.</li>
+    <li><b>Auto-redirect login BẮT BUỘC có loop-guard.</b> Lần đầu ship Crove-Cal thiếu nó: secret sai khiến user bị bắn login → SSO → callback-error → login vô hạn (auto reload). Fix (PR #83): lần redirect SSO đầu tiên gắn cookie <code>dos-sso-attempted</code> 120 giây; trong thời gian đó /auth/login hiện form cũ thay vì bắn lại. Bất kỳ app nào xây auto-redirect SSO phải có cơ chế tương đương ngay từ PR đầu tiên.</li>
+    <li><b>Break-glass sign-in chỉ cho admin allowlist.</b> Chuẩn chung của suite (Sign/Desk/Cal): password/email-code sign-in chỉ chấp nhận email trong <code>ADMIN_EMAILS</code>; ngoài danh sách nhận lỗi <code>third-party-identity-provider-enabled</code> (UI đã có bản dịch dẫn user về DOS ID). Deploy chưa set <code>ADMIN_EMAILS</code> giữ hành vi mở (chống tự khoá lối). Tham chiếu: PR #84 (ADMIN_EMAILS + invite token) + #85 (siết allowlist).</li>
   </ul>
 
-  <h2>8. Liên kết tham chiếu trong Crove-Cal</h2>
+  <h2>8. Quy trình rotate secret của client OAuth dùng chung (gói MỘT thao tác)</h2>
+  <div class="note">
+    <b>Quy tắc:</b> một client OAuth dùng chung nhiều app thì secret có MỘT nguồn sự thật duy nhất = GCP Secret Manager (<code>CROVE_OAUTH_CLIENT_SECRET</code>, project <code>crove-os</code>). Rotate mà không kéo xuống hết các consumer là lỗi vận hành - đã gây sự cố 2 tuần chết âm thầm (tháng 9/2026).
+  </div>
+  <ol>
+    <li>Rotate trên Supabase Dashboard (project <code>dos</code> - <code>gulptwduchsjcsbndmua</code>) → Authentication → OAuth client "Crove" → regenerate secret.</li>
+    <li>Lưu ngay vào GCP Secret Manager (secret không đi qua chat):
+      <pre>gcloud secrets versions add CROVE_OAUTH_CLIENT_SECRET --project=crove-os --data-file=-
+# dán secret mới, Enter, Ctrl+D</pre></li>
+    <li>Cập nhật env của MỌI consumer trên crove-server và recreate (file env của CRM/Sign thuộc root - dùng sudo; backup trước: <code>.env.bak-&lt;ngày&gt;</code>):
+      <table>
+        <thead><tr><th>App</th><th>File</th><th>Biến</th></tr></thead>
+        <tbody>
+          <tr><td>Crove-Cal</td><td>/opt/crove/cal/.env</td><td><code>OIDC_CLIENT_SECRET</code></td></tr>
+          <tr><td>Crove-CRM</td><td>/opt/crove/crm/.env</td><td><code>AUTH_DOS_ID_CLIENT_SECRET</code></td></tr>
+          <tr><td>Crove-Sign</td><td>/opt/crove/sign/.env</td><td><code>NEXT_PRIVATE_OIDC_CLIENT_SECRET</code></td></tr>
+          <tr><td>App mới</td><td>/opt/crove/&lt;app&gt;/.env</td><td>biến secret của app đó</td></tr>
+        </tbody>
+      </table>
+      <pre>docker compose up -d --no-deps --force-recreate &lt;service&gt;</pre></li>
+    <li>Probe TỪNG app ngay sau khi recreate (thay token endpoint + client id + secret của app đó):
+      <pre>curl -u "$CID:$CSEC" -X POST "$TOKEN_ENDPOINT" \
+  -d "grant_type=authorization_code&code=fake-diagnostic&redirect_uri=$CALLBACK"
+# mong đợi: invalid_grant (credentials OK) - KHÔNG phải invalid client credentials</pre></li>
+    <li>Test login mới thật trên từng app (trình duyệt ẩn danh, đăng nhập DOS ID từ đầu). Xong mới coi rotate hoàn tất.</li>
+  </ol>
+
+  <h2>9. Liên kết tham chiếu trong Crove-Cal</h2>
   <table>
     <thead><tr><th>Thành phần</th><th>Vị trí</th></tr></thead>
     <tbody>
@@ -172,7 +203,7 @@ cd /opt/crove/&lt;app&gt; &amp;&amp; docker compose up -d --no-deps &lt;service&
       <tr><td>Điều kiện đăng ký provider (middleware phải mirror cái này)</td><td><code>packages/features/auth/lib/next-auth-options.ts</code> (hàm <code>DosIdProvider</code>)</td></tr>
       <tr><td>Unit test</td><td><code>apps/web/proxy.test.ts</code> (describe "DOS ID auto-SSO redirect")</td></tr>
       <tr><td>i18n keys</td><td><code>packages/i18n/locales/en/common.json</code>: <code>sso_redirecting_title</code>, <code>sso_redirecting_body</code>, <code>sso_redirect_failed</code>, <code>sso_use_other_login</code></td></tr>
-      <tr><td>PR tham chiếu</td><td>#78 (feature) + #79 (hotfix turbo cache dir)</td></tr>
+      <tr><td>PR tham chiếu</td><td>#78 (feature) · #79 (hotfix turbo cache) · #83 (loop-guard) · #84 (ADMIN_EMAILS + invite token) · #85 (break-glass admin-only)</td></tr>
     </tbody>
   </table>
 
@@ -182,7 +213,7 @@ cd /opt/crove/&lt;app&gt; &amp;&amp; docker compose up -d --no-deps &lt;service&
 </main>
 
 <footer>
-  Nguồn: Crove-Cal PR #78 + #79, production cal.crove.com, sự cố deploy 2026-09-18 và cách xử lý · File self-contained, không fetch ngoài.
+  Nguồn: Crove-Cal PR #78-#85, production cal.crove.com, các sự cố deploy 2026-09-18/21 và cách xử lý · File self-contained, không fetch ngoài.
 </footer>
 </body>
 </html>
