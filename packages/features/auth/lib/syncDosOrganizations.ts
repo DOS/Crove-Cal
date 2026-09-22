@@ -45,6 +45,25 @@ export const getBootstrapAdminRole = (email: string | null): MembershipRole | nu
   return adminEmails.includes(email.trim().toLowerCase()) ? MembershipRole.ADMIN : null;
 };
 
+/**
+ * Break-glass sign-in (password / email code) policy: when ADMIN_EMAILS is configured,
+ * only those accounts may bypass DOS ID - everyone else must go through the identity
+ * provider, which shrinks the always-on password attack surface to just the admins
+ * (Sign/Desk alignment). When ADMIN_EMAILS is unset the deployment keeps the legacy
+ * open behavior so it never locks itself out of a half-migrated setup.
+ */
+export const isBreakGlassLoginAllowed = (email: string | null): boolean => {
+  const raw = (process.env.ADMIN_EMAILS || "").trim();
+  if (!raw) return true;
+  const adminEmails = raw
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  if (adminEmails.length === 0) return true;
+  if (!email) return false;
+  return adminEmails.includes(email.trim().toLowerCase());
+};
+
 export async function syncDosOrganizations(
   userId: number,
   organizations?: DosOrgClaim[],

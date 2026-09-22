@@ -53,7 +53,7 @@ import { getOrgUsernameFromEmail } from "../signup/utils/getOrgUsernameFromEmail
 import { dub } from "./dub";
 import { ErrorCode } from "./ErrorCode";
 import CalComAdapter from "./next-auth-custom-adapter";
-import { syncDosOrganizations } from "./syncDosOrganizations";
+import { isBreakGlassLoginAllowed, syncDosOrganizations } from "./syncDosOrganizations";
 import { verifyPassword } from "./verifyPassword";
 
 type UserWithProfiles = NonNullable<
@@ -165,6 +165,12 @@ export async function authorizeCredentials(
   // Don't leak information about it being username or password that is invalid
   if (!user) {
     throw new Error(ErrorCode.IncorrectEmailPassword);
+  }
+
+  // When ADMIN_EMAILS is configured, password sign-in is the admin break-glass
+  // only; everyone else authenticates through the DOS ID provider.
+  if (!isBreakGlassLoginAllowed(user.email)) {
+    throw new Error(ErrorCode.ThirdPartyIdentityProviderEnabled);
   }
 
   // Locked users cannot login

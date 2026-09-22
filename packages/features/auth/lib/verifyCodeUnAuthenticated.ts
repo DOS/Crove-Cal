@@ -4,9 +4,17 @@ import { checkRateLimitAndThrowError } from "@calcom/lib/checkRateLimitAndThrowE
 import { hashEmail } from "@calcom/lib/server/PiiHasher";
 import { totpRawCheck } from "@calcom/lib/totp";
 
+import { isBreakGlassLoginAllowed } from "./syncDosOrganizations";
+
 export const verifyCodeUnAuthenticated = async (email: string, code: string) => {
   if (!email || !code) {
     throw new Error("Email and code are required");
+  }
+
+  // Email-code sign-in is part of the admin break-glass path: when ADMIN_EMAILS
+  // is configured, non-allowlisted accounts must use the DOS ID provider.
+  if (!isBreakGlassLoginAllowed(email)) {
+    throw new Error("third-party-identity-provider-enabled");
   }
 
   await checkRateLimitAndThrowError({
