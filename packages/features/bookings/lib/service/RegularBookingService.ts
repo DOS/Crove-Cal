@@ -15,6 +15,7 @@ import {
 import dayjs from "@calcom/dayjs";
 import getICalUID from "@calcom/emails/lib/getICalUID";
 import { verifyCodeUnAuthenticated } from "@calcom/features/auth/lib/verifyCodeUnAuthenticated";
+import { WorkflowService } from "@calcom/features/workflows/lib/WorkflowService";
 import type {
   BookingDataSchemaGetter,
   BookingHandlerInput,
@@ -2510,6 +2511,26 @@ async function handler(
     }
   } catch (error) {
     tracingLogger.error("Error while scheduling no show triggers", JSON.stringify({ error }));
+  }
+
+  // Workflows (audit HI-14): confirmed bookings get their workflow reminders
+  // scheduled; on reschedule the old booking's pending reminders are cancelled
+  // first, the new booking gets fresh ones.
+  if (booking.status === BookingStatus.ACCEPTED && !isDryRun) {
+    try {
+      const workflowService = new WorkflowService(deps.prismaClient);
+      if (rescheduleUid && originalRescheduledBooking) {
+        await workflowService.cancelRemindersForBooking({ bookingUid: originalRescheduledBooking.uid });
+      }
+      await workflowService.scheduleRemindersForBooking({
+        bookingUid: booking.uid,
+        eventTypeId,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+      });
+    } catch (error) {
+      tracingLogger.error("Error while scheduling workflow reminders", JSON.stringify({ error }));
+    }
   }
 
   if (!isDryRun) {
