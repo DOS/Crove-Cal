@@ -2,6 +2,7 @@ import { eventTypeAppMetadataOptionalSchema } from "@calcom/app-store/zod-utils"
 import { sendScheduledEmailsAndSMS } from "@calcom/emails/email-manager";
 import type { EventManagerUser } from "@calcom/features/bookings/lib/EventManager";
 import EventManager from "@calcom/features/bookings/lib/EventManager";
+import { emitBookingWorkflowEvent } from "@calcom/lib/bookingWorkflowEvents";
 import getWebhooks from "@calcom/features/webhooks/lib/getWebhooks";
 import { scheduleTrigger } from "@calcom/features/webhooks/lib/scheduleTrigger";
 import sendPayload from "@calcom/features/webhooks/lib/sendOrSchedulePayload";
@@ -10,7 +11,6 @@ import { getVideoCallUrlFromCalEvent } from "@calcom/lib/CalEventParser";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import type { TraceContext } from "@calcom/lib/tracing";
 import { distributedTracing } from "@calcom/lib/tracing/factory";
-import { WorkflowService } from "@calcom/features/workflows/lib/WorkflowService";
 import type { PrismaClient } from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
 import type { SchedulingType } from "@calcom/prisma/enums";
@@ -313,17 +313,13 @@ export async function handleConfirmation(args: {
   // reminders scheduled now that they are ACCEPTED.
   for (const updatedBooking of updatedBookings) {
     if (updatedBooking.status !== BookingStatus.ACCEPTED || !booking.eventTypeId) continue;
-    try {
-      const workflowService = new WorkflowService(prisma);
-      await workflowService.scheduleRemindersForBooking({
-        bookingUid: updatedBooking.uid,
-        eventTypeId: booking.eventTypeId,
-        startTime: updatedBooking.startTime,
-        endTime: updatedBooking.endTime,
-      });
-    } catch (error) {
-      console.error("Error while scheduling workflow reminders", error);
-    }
+    emitBookingWorkflowEvent({
+      type: "booking_confirmed",
+      bookingUid: updatedBooking.uid,
+      eventTypeId: booking.eventTypeId,
+      startTime: updatedBooking.startTime,
+      endTime: updatedBooking.endTime,
+    });
   }
 
   const triggerForUser = true;
