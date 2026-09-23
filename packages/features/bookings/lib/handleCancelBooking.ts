@@ -22,9 +22,9 @@ import {
 } from "@calcom/features/webhooks/lib/scheduleTrigger";
 import sendPayload from "@calcom/features/webhooks/lib/sendOrSchedulePayload";
 import type { EventTypeInfo } from "@calcom/features/webhooks/lib/sendPayload";
-import { WorkflowService } from "@calcom/features/workflows/lib/WorkflowService";
 import { getTranslation } from "@calcom/i18n/server";
 import { HttpError } from "@calcom/lib/http-error";
+import { emitBookingWorkflowEvent } from "@calcom/lib/bookingWorkflowEvents";
 import { isPrismaObjOrUndefined } from "@calcom/lib/isPrismaObj";
 import { parseRecurringEvent } from "@calcom/lib/isRecurringEvent";
 import logger from "@calcom/lib/logger";
@@ -431,15 +431,11 @@ async function handler(input: CancelBookingInput, dependencies?: Dependencies) {
   // Invalidate any pending workflow reminders attached to the cancelled
   // booking(s) — including the original booking when a reschedule cancels it —
   // so a reminder scheduled for the old time/status never fires.
-  // Best-effort: a failure here must not fail the booking cancellation.
-  const workflowService = new WorkflowService(prismaClient);
-  await Promise.all(
-    updatedBookings.map((booking) =>
-      workflowService.cancelRemindersForBooking({ bookingUid: booking.uid }).catch((e) => {
-        log.error(`Error cancelling workflow reminders for booking ${booking.uid}:`, e);
-      })
-    )
-  );
+  // Fire-and-forget: a failure here must not fail the booking cancellation.
+  emitBookingWorkflowEvent({
+    type: "booking_cancelled",
+    bookingUids: updatedBookings.map((booking) => booking.uid),
+  });
 
   /** TODO: Remove this without breaking functionality */
   if (bookingToDelete.location === DailyLocationType) {
