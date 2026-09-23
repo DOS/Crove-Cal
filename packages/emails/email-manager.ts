@@ -58,6 +58,11 @@ const sendEmail = (prepare: () => BaseEmail) => {
   });
 };
 
+export const sendWorkflowReminderEmail = async (mail: { to: string; subject: string; text: string }) => {
+  const { WorkflowReminderEmail } = await import("./templates/workflow-reminder-email");
+  return sendEmail(() => new WorkflowReminderEmail(mail));
+};
+
 // Organization settings removed (team/org only feature)
 export const fetchOrganizationEmailSettings = async (_organizationId?: number | null | undefined) => {
   return null;

@@ -10,6 +10,7 @@ import { getVideoCallUrlFromCalEvent } from "@calcom/lib/CalEventParser";
 import { safeStringify } from "@calcom/lib/safeStringify";
 import type { TraceContext } from "@calcom/lib/tracing";
 import { distributedTracing } from "@calcom/lib/tracing/factory";
+import { WorkflowService } from "@calcom/features/workflows/lib/WorkflowService";
 import type { PrismaClient } from "@calcom/prisma";
 import type { Prisma } from "@calcom/prisma/client";
 import type { SchedulingType } from "@calcom/prisma/enums";
@@ -306,6 +307,23 @@ export async function handleConfirmation(args: {
         uid: booking.uid,
       },
     ];
+  }
+
+  // Workflows (audit HI-14): bookings confirmed here also get their workflow
+  // reminders scheduled now that they are ACCEPTED.
+  for (const updatedBooking of updatedBookings) {
+    if (updatedBooking.status !== BookingStatus.ACCEPTED || !booking.eventTypeId) continue;
+    try {
+      const workflowService = new WorkflowService(prisma);
+      await workflowService.scheduleRemindersForBooking({
+        bookingUid: updatedBooking.uid,
+        eventTypeId: booking.eventTypeId,
+        startTime: updatedBooking.startTime,
+        endTime: updatedBooking.endTime,
+      });
+    } catch (error) {
+      console.error("Error while scheduling workflow reminders", error);
+    }
   }
 
   const triggerForUser = true;
