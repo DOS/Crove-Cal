@@ -178,14 +178,6 @@ const KBAR_ACTION_CONFIGS: ActionConfig[] = [
     href: "/settings/security/impersonation",
   },
   {
-    id: "license",
-    name: "choose_a_license",
-    section: "admin",
-    shortcut: ["u", "l"],
-    keywords: "license",
-    href: "/auth/setup?step=1",
-  },
-  {
     id: "webhooks",
     name: "Webhooks",
     section: "developer",
