@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Cal.com vs Crove-Cal - Bảng so sánh tính năng còn thiếu - 2026-09-16</title>
+<style>
+  :root {
+    --bg: #0f1113; --card: #16181d; --ink: #e8eaed; --muted: #9aa3ad; --line: #262b32;
+    --brand: #ff2e29; --ok: #3ddc97; --warn: #e6b450; --info: #7ab3ff; --chip: #1e2126;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.6; }
+  header.top { background: #101216; color: var(--ink); border-bottom: 2px solid var(--brand); padding: 16px 24px; }
+  header.top h1 { font-size: 18px; margin: 0 0 4px; }
+  header.top .meta { color: var(--muted); font-size: 12.5px; }
+  header.top .meta b { color: var(--ink); }
+  main { max-width: 1240px; margin: 0 auto; padding: 20px 24px 80px; }
+  h2 { font-size: 16px; margin: 34px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 14px; margin: 18px 0 8px; }
+  p { margin: 8px 0; }
+  .note { background: #1a1d23; border: 1px solid #3a4250; border-left: 3px solid var(--brand); border-radius: 10px; padding: 12px 16px; font-size: 13.5px; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.8px; margin: 10px 0 4px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--chip); font-size: 12px; white-space: nowrap; }
+  tr:nth-child(even) td { background: #13161a; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  .badge { display: inline-block; border-radius: 6px; padding: 2px 9px; font-size: 11px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
+  .b-have { background: #12291f; color: var(--ok); border: 1px solid #2b6b4f; }
+  .b-part  { background: #292110; color: var(--warn); border: 1px solid #6f5a24; }
+  .b-miss  { background: #2a1112; color: #ff8a86; border: 1px solid #7a1f1c; }
+  .b-p1 { background: #2a1112; color: #ff8a86; border: 1px solid #7a1f1c; }
+  .b-p2 { background: #292110; color: var(--warn); border: 1px solid #6f5a24; }
+  .b-p3 { background: #191c20; color: var(--muted); border: 1px solid var(--line); }
+  .b-na  { background: #1a2333; color: #9dc1ff; border: 1px solid #2c4a7a; }
+  footer { color: var(--muted); font-size: 12px; padding: 24px; text-align: center; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card .num { font-size: 28px; font-weight: 700; line-height: 1.1; }
+  .card .lbl { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .ok .num { color: var(--ok); } .miss .num { color: #ff8a86; } .warn .num { color: var(--warn); } .info .num { color: var(--info); }
+  ul { margin: 6px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  a { color: var(--info); }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Cal.com vs Crove-Cal - Tính năng Cal.com có mà fork chưa có</h1>
+  <div class="meta">Ngày: <b>2026-09-16</b> &nbsp;·&nbsp; Nguồn: <b>cal.com/blog/category/updates (changelog v6.2 → v6.9)</b> &nbsp;·&nbsp; Phương pháp: đọc changelog + verify trực tiếp trong repo Crove-Cal (grep từng module) &nbsp;·&nbsp; Baseline fork: <b>dev @ 6752eeb267</b></div>
+</header>
+
+<main>
+  <div class="note">
+    <b>Bối cảnh quan trọng nhất:</b> Cal.com <b>đã đóng source từ 2026-04</b> (bài "Cal.com is going closed source. Here's why" - lý do: AI quét code public tìm lỗ hổng). Production code của họ đã chuyển sang repo private và <b>diverged mạnh</b> (rewrite auth + data handling). Repo công khai <code>calcom/cal.diy</code> - upstream của Crove-Cal - giờ là bản MIT community-driven, <b>không cam kết vá CVE hay nhận feature mới</b>. Hệ quả: mọi tính năng trong bảng dưới đây <b>không bao giờ tới fork qua đường sync upstream</b> - muốn có thì phải tự xây hoặc thay thế bằng hướng khác.
+  </div>
+
+  <h2>Tổng quan nhanh</h2>
+  <div class="cards">
+    <div class="card miss"><div class="num">12</div><div class="lbl">Tính năng fork CHƯA có</div></div>
+    <div class="card warn"><div class="num">2</div><div class="lbl">Có một phần / bản cũ</div></div>
+    <div class="card ok"><div class="num">4</div><div class="lbl">Không cần cho use-case DOS</div></div>
+    <div class="card info"><div class="num">0</div><div class="lbl">Port được từ upstream (đã đóng source)</div></div>
+  </div>
+
+  <h2>Bảng chi tiết (mới nhất lên đầu)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:200px">Tính năng</th>
+        <th style="width:70px">Ra mắt</th>
+        <th style="width:120px">Crove-Cal</th>
+        <th>Là gì / bằng chứng verify trong repo</th>
+        <th style="width:150px">Hướng đi đề xuất</th>
+        <th style="width:90px">Ưu tiên</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Workflows 2.0</b><br>(visual automation canvas)</td>
+        <td>v6.9<br>15/09/2026</td>
+        <td><span class="badge b-part">BẢN CRUD</span></td>
+        <td>Cal.com: canvas kéo-thả, split theo điều kiện, filter nodes; sắp có Delays + Lead enrichment. Fork: có UI <code>/workflows</code> tự viết nhưng engine chưa wire - <code>scheduleRemindersForBooking</code> vẫn 0 production caller (audit HI-14, verify lại 2026-09-16). Nghĩa là reminder hiện KHÔNG bao giờ được gửi.</td>
+        <td>Quyết định treo HI-14: hoặc wire dispatcher cho workflow đơn giản (SMS/email trước/gặp), hoặc giấu UI. Không thể tham khảo code Cal.com (đã đóng) - chỉ tham khảo mô hình.</td>
+        <td><span class="badge b-p1">CAO</span></td>
+      </tr>
+      <tr>
+        <td><b>Calendar read fail-closed</b><br>(security behavior fix)</td>
+        <td>v6.9<br>15/09/2026</td>
+        <td><span class="badge b-miss">CHƯA CHECK</span></td>
+        <td>Cal.com fix: khi đọc calendar lỗi, host hiện là <i>busy</i> thay vì hiện slot trống (tránh double-book khi calendar unreadable). Đây là mô tả trong changelog - code đóng, không xem được. Fork chưa từng audit hành vi tương tự.</td>
+        <td>Tự audit booking availability path trong fork: xác định hành vi hiện tại khi external calendar fetch fail (error bị nuốt → coi như rảnh? hay throw?). Nếu nuốt lỗi → tự fix theo hướng fail-closed.</td>
+        <td><span class="badge b-p1">CAO</span></td>
+      </tr>
+      <tr>
+        <td><b>Troubleshooter 2.0</b></td>
+        <td>v6.9<br>(1.0: v6.8)</td>
+        <td><span class="badge b-part">CÓ 1.0</span></td>
+        <td>Cal.com: giải thích vì sao slot biến mất, gợi ý fix. Fork đã có <code>apps/web/modules/troubleshooter</code> + trang <code>/availability/troubleshoot</code> (verify 2026-09-16).</td>
+        <td>Giữ bản hiện có; nâng cấp theo nhu cầu thực tế support. Không port được.</td>
+        <td><span class="badge b-p3">THẤP</span></td>
+      </tr>
+      <tr>
+        <td><b>Cal.ai trở lại app store</b><br>(AI assistant đặt lịch)</td>
+        <td>v6.9<br>15/09/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Assistant AI hosted của Cal.com. Fork: <code>packages/app-store/calai</code> không tồn tại (verify 2026-09-16); đây là dịch vụ trả phí của Cal.com, self-host không chạy được kể cả khi có code.</td>
+        <td>Không cần. Fork đã có hướng thay thế đúng: <code>packages/mcp-server</code> (MCP cho agent tự vận hành calendar) - đã được audit hardening tenant-scoping (HI-02/03 fixed). Đầu tư vào MCP hơn.</td>
+        <td><span class="badge b-p3">KHÔNG CẦN</span></td>
+      </tr>
+      <tr>
+        <td><b>PBAC role overlays</b><br>(custom role per team)</td>
+        <td>v6.9<br>15/09/2026</td>
+        <td><span class="badge b-part">NỀN ĐÃ CÓ</span></td>
+        <td>Cal.com: role mặc định sửa được + overlay role riêng từng team. Fork: PBAC permission check đã thật (MD-03 fix 2026-09-10, commit aa68fd3acc) nhưng chưa có UI quản lý role tùy biến.</td>
+        <td>Nếu DOS cần phân quyền mịn theo team: xây UI role editor trên nền PBAC hiện có. Không port được.</td>
+        <td><span class="badge b-p2">TRUNG BÌNH</span></td>
+      </tr>
+      <tr>
+        <td><b>Cal Events</b><br>(sản phẩm tổ chức sự kiện)</td>
+        <td>v6.8<br>15/08/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Trang đăng ký sự kiện nhiều người / marketing events. Fork không có module tương tự (verify: không tìm thấy "cal events" feature riêng - chỉ có calendar-subscription thông thường).</td>
+        <td>Không phục vụ use-case hiện tại (booking nội bộ hệ sinh thái DOS). Bỏ qua.</td>
+        <td><span class="badge b-p3">KHÔNG CẦN</span></td>
+      </tr>
+      <tr>
+        <td><b>AI chat trong routing forms</b></td>
+        <td>v6.8<br>15/08/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Fork có app routing-forms (bản cũ upstream) nhưng không có AI chat (verify: không tìm thấy module chat trong <code>packages/app-store/routing-forms</code>).</td>
+        <td>Chỉ làm nếu DOS cần chatbot tư vấn trước đặt lịch. Có thể ghép qua API AI bên ngoài.</td>
+        <td><span class="badge b-p3">THẤP</span></td>
+      </tr>
+      <tr>
+        <td><b>Cal.com Notes</b> + private event notes</td>
+        <td>v6.7<br>15/07/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Ghi chú cuộc họp (meeting notes) trong hệ sinh thái Cal. Fork: không có <code>packages/features/notes</code> (verify 2026-09-16).</td>
+        <td>Tự xây được nếu DOS mentor (Menteelogy) cần notes sau session - model đơn giản (bảng Note + quan hệ Booking). Đặt sau khi giải quyết Workflows.</td>
+        <td><span class="badge b-p2">TRUNG BÌNH</span></td>
+      </tr>
+      <tr>
+        <td><b>Cal Pay</b></td>
+        <td>v6.7<br>15/07/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Hệ thống thanh toán/subscription của Cal.com cho platform. Fork: không có (verify: không tìm thấy module calpay).</td>
+        <td>Không cần - Crove không bán gói qua calendar; thanh toán nằm ở hệ sinh thái DOS.</td>
+        <td><span class="badge b-p3">KHÔNG CẦN</span></td>
+      </tr>
+      <tr>
+        <td><b>Design system mới + UI overhaul</b></td>
+        <td>v6.6<br>15/06/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Cal.com làm lại toàn bộ UI/design system. Fork giữ giao diện bản cũ (trước 2026-06).</td>
+        <td>Không theo - chi phí rework toàn diện quá lớn so với giá trị (calendar nội bộ). Chỉ chỉnh nhỏ khi cần.</td>
+        <td><span class="badge b-p3">KHÔNG CẦN</span></td>
+      </tr>
+      <tr>
+        <td><b>Audit logs</b><br>(instance-level)</td>
+        <td>v6.6<br>15/06/2026</td>
+        <td><span class="badge b-part">CÓ BOOKING</span></td>
+        <td>Cal.com: audit log toàn hệ thống. Fork đã có <code>packages/features/booking-audit</code> (booking history viewer) - đủ cho booking, thiếu audit toàn hệ thống (ai đổi setting gì, lúc nào).</td>
+        <td>Nếu cần compliance/chuẩn bị bán cho ngân hàng (DOSafe context): xây bảng AuditLog tổng + middleware ghi event. Giá trị chiến lược cao với khách tài chính.</td>
+        <td><span class="badge b-p2">TRUNG BÌNH</span></td>
+      </tr>
+      <tr>
+        <td><b>Event type history</b></td>
+        <td>v6.5<br>15/05/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Xem lịch sử thay đổi event type. Fork: schema không có model tương tự (verify: không tìm thấy EventTypeHistory trong schema.prisma).</td>
+        <td>Ghép cùng audit log tổng (mục trên) nếu làm.</td>
+        <td><span class="badge b-p3">THẤP</span></td>
+      </tr>
+      <tr>
+        <td><b>Cal.com Agents</b></td>
+        <td>v6.3<br>15/03/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Sản phẩm AI agent của Cal.com. Fork: <code>packages/app-store/agents</code> không tồn tại (verify 2026-09-16).</td>
+        <td>Không cần - thay bằng MCP server của fork (agent infrastructure riêng của DOS ecosystem).</td>
+        <td><span class="badge b-p3">KHÔNG CẦN</span></td>
+      </tr>
+      <tr>
+        <td><b>Custom domain + SMTP admin UI</b></td>
+        <td>v6.3<br>15/03/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ (env)</span></td>
+        <td>Cal.com: cấu hình custom domain + SMTP trong admin UI. Fork: cấu hình qua biến môi trường (self-host single-tenant).</td>
+        <td>Không cần admin UI khi vận hành 1 tenant; env + CI hiện tại đủ và an toàn hơn.</td>
+        <td><span class="badge b-p3">THẤP</span></td>
+      </tr>
+      <tr>
+        <td><b>Bookings page redesign</b></td>
+        <td>v6.2<br>15/02/2026</td>
+        <td><span class="badge b-miss">BẢN CŨ</span></td>
+        <td>Trang /bookings làm mới. Fork giữ bản cũ.</td>
+        <td>Cosmetic - bỏ qua.</td>
+        <td><span class="badge b-p3">THẤP</span></td>
+      </tr>
+      <tr>
+        <td><b>Link cloaking chống URL scanners</b></td>
+        <td>v6.2<br>15/02/2026</td>
+        <td><span class="badge b-miss">KHÔNG CÓ</span></td>
+        <td>Che link cuộc họp trước URL preview scanner (Outlook Safe Links v.v.). Fork không có cơ chế tương tự (verify: không tìm thấy module cloak).</td>
+        <td>Chỉ làm khi có vấn đề thực tế (link họp bị scanner phá). Nhỏ, tự làm được.</td>
+        <td><span class="badge b-p3">THẤP</span></td>
+      </tr>
+      <tr>
+        <td><b>Salesforce improvements</b></td>
+        <td>v6.5<br>15/05/2026</td>
+        <td><span class="badge b-part">APP CÓ SẴN</span></td>
+        <td>Fork có app Salesforce bản cũ trong app-store; thiếu các cải thiện v6.5.</td>
+        <td>Không liên quan use-case DOS. Bỏ qua.</td>
+        <td><span class="badge b-p3">KHÔNG CẦN</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Security fixes trong v6.9 đáng tự soi lại fork</h2>
+  <div class="note">
+    Cal.com công bố các fix security trong v6.9. Code đã đóng nên không xem được - nhưng mô tả hành vi đủ để tự kiểm tra xem fork có cùng lỗ hổng hành vi hay không:
+  </div>
+  <table>
+    <thead><tr><th>Fix của Cal.com (mô tả từ changelog)</th><th>Trạng thái Crove-Cal</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Availability fail closed khi calendar read lỗi (host hiện busy thay vì rảnh)</td>
+        <td><span class="badge b-miss">CHƯA AUDIT</span> - cần kiểm tra availability path khi external calendar fetch fail. Đề xuất đưa vào round audit kế tiếp.</td>
+      </tr>
+      <tr>
+        <td>Ngừng tin email claim từ Azure AD trong invite/new-user flows + siết SAML tenant lookup</td>
+        <td><span class="badge b-have">ĐÃ FIX NHÓM TƯƠNG ĐƯƠNG</span> - audit CR-01/HI-07 đã xử email trust (<code>emailVerified ?? true</code> → unverified, JWT update callback re-anchor). Fork không dùng Azure AD/SAML nên phần đó không áp dụng.</td>
+      </tr>
+      <tr>
+        <td>Unconfirmed bookings không còn block slot của event types khác</td>
+        <td><span class="badge b-miss">CHƯA AUDIT</span> - hành vi PENDING booking với availability: cần kiểm tra khi làm Workflows.</td>
+      </tr>
+      <tr>
+        <td>Account locks tạm thời sau failed login (backoff)</td>
+        <td><span class="badge b-have">ĐÃ CÓ HƯỚNG TƯƠNG ĐƯƠNG</span> - rate limit 6 auth mutations đã thêm trong Round 3 (commit a81ee2e86c).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Kết luận và thứ tự đề xuất</h2>
+  <ul>
+    <li><b>Không có gì phải "đuổi" theo Cal.com.</b> Sau khi đóng source, fork và Cal.com là hai sản phẩm khác nhau. Các item "KHÔNG CẦN" (Cal.ai, Agents, Cal Pay, Cal Events, design overhaul) đều là sản phẩm thương mại của họ, không hợp use-case nội bộ DOS.</li>
+    <li><b>Hai việc đáng làm nhất từ bảng này:</b> (1) quyết định Workflows - wire dispatcher hoặc giấu UI (đang treo từ audit HI-14, hiện trạng là UI trông hoạt động nhưng reminder không bao giờ gửi - nguy hiểm hơn là không có tính năng); (2) audit calendar-read fail-closed - hành vi đúng đắn của booking engine, ảnh hưởng trực tiếp double-book.</li>
+    <li><b>Điều kiện vận hành đã thay đổi vĩnh viễn:</b> không còn upstream để tự vá CVE. CI của fork (bật lại 2026-09-16 qua fork-ci.yml) + dependabot.yml + quy trình tự audit định kỳ là hàng rào duy nhất. Nên giữ nhịp audit lại mỗi lần bump dependency lớn.</li>
+  </ul>
+</main>
+
+<footer>
+  Nguồn: cal.com/blog (changelog v6.2-v6.9 + bài closed-source, đọc 2026-09-16) · Verify trong repo Crove-Cal (dev @ 6752eeb267) · File self-contained, không fetch ngoài.
+</footer>
+</body>
+</html>

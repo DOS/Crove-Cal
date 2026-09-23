@@ -1,0 +1,39 @@
+name: Fork CI
+
+# Crove-Cal's own verification pipeline. The upstream "All checks" workflow only
+# fires on merge_group and is guarded to calcom/cal.diy, so without this file
+# nothing verifies pushes/PRs on DOS/Crove-Cal (audit finding HI-09).
+#
+# Why explicit permissions: lint.yml (called below) requires "actions: write";
+# without this block the called workflow asks for more than the default
+# GITHUB_TOKEN grant and every run dies as a startup_failure with no jobs.
+permissions:
+  actions: write
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - main
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+jobs:
+  type-check:
+    name: Type check
+    uses: ./.github/workflows/check-types.yml
+    secrets: inherit
+
+  lint:
+    name: Linters
+    uses: ./.github/workflows/lint.yml
+    secrets: inherit
+
+  unit-test:
+    name: Unit tests
+    uses: ./.github/workflows/unit-tests.yml
+    secrets: inherit

@@ -65,6 +65,29 @@ const shouldEnforceCsp = (url: URL) => {
   return url.pathname.startsWith("/auth/login") || url.pathname.startsWith("/login");
 };
 
+// Mirror of the registration gate in packages/features/auth (next-auth-options):
+// the dos-id provider only exists when both credentials are configured. The
+// NEXT_PUBLIC login flag alone is not enough - redirecting to an unregistered
+// provider would make signIn fail.
+const isDosIdProviderConfigured = () =>
+  !!(
+    (process.env.OIDC_CLIENT_ID || "").trim() &&
+    (process.env.OIDC_CLIENT_SECRET || process.env.CROVE_OAUTH_CLIENT_SECRET || "").trim()
+  );
+
+const isLoginPath = (url: URL) => url.pathname === "/auth/login" || url.pathname === "/login";
+
+// ?direct=1 keeps the classic form reachable as the break-glass path when the
+// identity provider is unreachable or an admin needs a local sign-in.
+export const shouldRedirectToDosIdSso = (url: URL) =>
+  isDosIdProviderConfigured() && isLoginPath(url) && url.searchParams.get("direct") !== "1";
+
+// Set on the first SSO redirect; while it lives, /auth/login shows the classic
+// form instead of bouncing the user back into the SSO flow. Without this a
+// failing token exchange (bad client secret, IdP outage) turns into an infinite
+// login -> sso -> callback-error -> login reload loop.
+const SSO_LOOP_GUARD_COOKIE = "dos-sso-attempted";
+
 const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
   const url = req.nextUrl;
   const reqWithEnrichedHeaders = enrichRequestWithHeaders({ req });
@@ -77,6 +100,33 @@ const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
       // TODO: Consider using responseWithHeaders here
       return NextResponse.json({ error: "Signup is disabled" }, { status: 503 });
     }
+  }
+
+  // Single-IdP deployments skip the login form entirely: hop to /auth/sso which
+  // starts the next-auth dos-id flow (CSRF/state handled by next-auth).
+  if (shouldRedirectToDosIdSso(url) && !req.cookies.get(SSO_LOOP_GUARD_COOKIE)?.value) {
+    const ssoUrl = new URL("/auth/sso", reqWithEnrichedHeaders.url);
+    // Carry invite tokens through the SSO hop: after sign-in the user lands back
+    // on the invited page (the next-auth callback then adopts the invited user
+    // by email match), instead of dropping the token on the login redirect.
+    const callbackUrl = url.searchParams.get("callbackUrl");
+    const token = url.searchParams.get("token");
+    let effectiveCallback: string | null = callbackUrl;
+    if (token) {
+      const base = callbackUrl || "/auth/signup";
+      const joiner = base.includes("?") ? "&" : "?";
+      effectiveCallback = `${base}${joiner}token=${encodeURIComponent(token)}`;
+    }
+    if (effectiveCallback) ssoUrl.searchParams.set("callbackUrl", effectiveCallback);
+    const redirect = NextResponse.redirect(ssoUrl);
+    redirect.cookies.set(SSO_LOOP_GUARD_COOKIE, "1", {
+      maxAge: 120,
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+    });
+    return redirect;
   }
 
   if (url.pathname.startsWith("/apps/installed")) {

@@ -10,6 +10,7 @@
     "declaration": true,
     "jsx": "preserve",
     "outDir": "dist",
+    "types": ["node"],
     "paths": {
       "@calcom/embed-core": ["../embed-core/src"],
       "@calcom/embed-snippet": ["../embed-snippet/src"]

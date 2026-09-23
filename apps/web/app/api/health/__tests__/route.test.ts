@@ -36,7 +36,8 @@ describe("API /api/health Endpoint", () => {
     const json = await res.json();
     expect(json.status).toBe("unhealthy");
     expect(json.database.status).toBe("disconnected");
-    expect(json.database.error).toContain("Connection refused to database pooler");
+    // Raw database errors must not leak to anonymous callers (audit MD-15).
+    expect(json.database.error).toBeUndefined();
   });
 
   it("should support HEAD requests", async () => {

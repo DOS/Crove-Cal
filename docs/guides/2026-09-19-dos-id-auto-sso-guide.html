@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Guide DOS ID Auto-SSO - Nhân bản sang Crove Desk / CRM / Sign / Post</title>
+<style>
+  :root {
+    --bg: #0f1113; --card: #16181d; --ink: #e8eaed; --muted: #9aa3ad; --line: #262b32;
+    --brand: #ff2e29; --ok: #3ddc97; --warn: #e6b450; --info: #7ab3ff; --chip: #1e2126;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.6; }
+  header.top { background: #101216; border-bottom: 2px solid var(--brand); padding: 16px 24px; }
+  header.top h1 { font-size: 18px; margin: 0 0 4px; }
+  header.top .meta { color: var(--muted); font-size: 12.5px; }
+  header.top .meta b { color: var(--ink); }
+  main { max-width: 1080px; margin: 0 auto; padding: 20px 24px 80px; }
+  h2 { font-size: 16px; margin: 34px 0 12px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 14px; margin: 20px 0 8px; color: var(--ink); }
+  p { margin: 8px 0; }
+  ul, ol { margin: 6px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12.5px; background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  pre { background: #12151a; border: 1px solid var(--line); border-left: 3px solid var(--brand); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; }
+  pre code { background: none; border: none; padding: 0; }
+  .note { background: #1a1d23; border: 1px solid #3a4250; border-left: 3px solid var(--brand); border-radius: 10px; padding: 12px 16px; font-size: 13.5px; margin: 14px 0; }
+  .ok-box { background: #12291f; border: 1px solid #2b6b4f; border-left: 3px solid var(--ok); border-radius: 10px; padding: 12px 16px; font-size: 13.5px; margin: 14px 0; }
+  .warn-box { background: #292110; border: 1px solid #6f5a24; border-left: 3px solid var(--warn); border-radius: 10px; padding: 12px 16px; font-size: 13.5px; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.8px; margin: 10px 0; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--chip); font-size: 12px; }
+  tr:nth-child(even) td { background: #13161a; }
+  .badge { display: inline-block; border-radius: 6px; padding: 2px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-must { background: #2a1112; color: #ff8a86; border: 1px solid #7a1f1c; }
+  .b-ok { background: #12291f; color: var(--ok); border: 1px solid #2b6b4f; }
+  a { color: var(--info); }
+  footer { color: var(--muted); font-size: 12px; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Guide: DOS ID Auto-SSO - thay trang login bằng redirect sang id.dos.me</h1>
+  <div class="meta">Ngày: <b>2026-09-19</b> · cập nhật <b>2026-09-22</b> (Wave 4 + incident secret + break-glass allowlist) &nbsp;·&nbsp; Pattern đã ship: <b>Crove-Cal PR #78, #79, #83, #84, #85</b> (đang chạy production cal.crove.com) &nbsp;·&nbsp; Áp dụng cho: <b>Crove Desk, Crove CRM, Crove Sign, Crove Post, và mọi app hệ sinh thái DOS</b></div>
+</header>
+
+<main>
+  <div class="note">
+    <b>Tóm tắt một câu:</b> thôi customize trang login của từng app - middleware chuyển user chưa đăng nhập thẳng sang id.dos.me (đăng nhập + đăng ký ở một nơi), trang login cũ giữ làm đường dự phòng <code>?direct=1</code>. Mỗi app chỉ cần 3 mảnh: <b>gate ở middleware + trang cầu nối + escape hatch</b>, không đụng UI login nữa.
+  </div>
+
+  <h2>1. Flow hoạt động</h2>
+  <pre>
+User vào /auth/login (chưa đăng nhập)
+        |
+        v
+[MIDDLEWARE] dos-id đã cấu hình (OIDC client id + secret) và KHÔNG có ?direct=1?
+        |  có                              |  không (chưa cấu hình / direct=1)
+        v                                  v
+  302 -> /auth/sso                  Hiện trang login cũ (form email, magic link...)
+        |                           = đường break-glass cho admin
+        v
+[TRANG CẦU NỐI /auth/sso]
+  gọi signIn("dos-id", { callbackUrl })
+  (auth library lo CSRF / state / nonce)
+        |
+        v
+  302 -> id.dos.me (đăng nhập / đăng ký)
+        |
+        v
+  callback về app -> JIT tạo user/org nếu user mới -> vào app
+  </pre>
+
+  <h2>2. Bốn nguyên tắc bắt buộc (không được bỏ)</h2>
+  <table>
+    <thead><tr><th style="width:60px">#</th><th>Nguyên tắc</th><th>Vì sao</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge b-must">1</span></td><td><b>Luôn đi qua auth library</b> (next-auth sign-in endpoint / tương đương), không tự viết redirect thẳng tới authorize endpoint của IdP</td><td>State/nonce/CSRF phải do thư viện xử lý. Tự chế = tự mở lỗổng login CSRF.</td></tr>
+      <tr><td><span class="badge b-must">2</span></td><td><b>Gate redirect theo đúng điều kiện đăng ký provider</b> - chỉ redirect khi OIDC client id + secret thật sự được cấu hình</td><td>Redirect tới provider chưa đăng ký = lỗi "unknown provider" cho mọi user. Ở Crove-Cal, điều kiện middleware mirror y hệt điều kiện <code>if (oidcId && oidcSecret)</code> trong phần đăng ký provider.</td></tr>
+      <tr><td><span class="badge b-must">3</span></td><td><b>Giữ break-glass</b>: <code>/auth/login?direct=1</code> (hoặc tương đương) luôn hiện form login cũ</td><td>id.dos.me chết = không ai vào được app. Admin cần đường vào local khi IdP unreachable.</td></tr>
+      <tr><td><span class="badge b-must">4</span></td><td><b>Logout không được auto-login lại</b> - trang sau logout phải là trang dừng có nút bấm, không tự kích hoạt sign-in</td><td>Session IdP còn sống mà logout xong bị đẩy ngay vào sign-in = "đăng xuất không được" - bug kinh điển của SSO auto-redirect.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. Chuẩn bị cho mỗi app (một lần)</h2>
+  <ol>
+    <li>Đăng ký OIDC client trên id.dos.me cho app: <code>client_id</code> + <code>client_secret</code>, redirect/callback URL trỏ về app (vd <code>https://desk.crove.com/api/auth/callback/dos-id</code>).</li>
+    <li>Khai báo env cho app: <code>OIDC_CLIENT_ID</code>, <code>OIDC_CLIENT_SECRET</code>, <code>OIDC_WELL_KNOWN_URL</code> (cùng bộ id.dos.me).</li>
+    <li>Bảo đảm app có sẵn OIDC provider đăng ký theo env (gate nếu thiếu env - xem Crove-Cal <code>packages/features/auth/lib/next-auth-options.ts</code>, hàm <code>DosIdProvider</code>).</li>
+  </ol>
+  <div class="warn-box">
+    <b>Lưu ý env trên Docker:</b> biến env client-side phải nằm trong <code>turbo.json</code> globalEnv (nếu dùng turbo) và trong Dockerfile/compose đúng giai đoạn, nếu không build cache sẽ trả giá trị sai - đây là finding MD-29 Crove-Cal từng dính.
+  </div>
+
+  <h2>4. Ba mảnh code cần thêm (Next.js + next-auth)</h2>
+  <p>Tham khảo trực tiếp Crove-Cal PR #78 (đã chạy production):</p>
+  <ul>
+    <li><b>Mảnh 1 - Middleware gate</b> (<code>apps/web/proxy.ts</code>): hàm <code>shouldRedirectToDosIdSso(url)</code> + redirect 302 sang <code>/auth/sso</code> (forward <code>callbackUrl</code> nếu có). Chỉ ~15 dòng.</li>
+    <li><b>Mảnh 2 - Trang cầu nối</b> (<code>apps/web/modules/auth/sso-view.tsx</code> + <code>app/(use-page-wrapper)/auth/sso/page.tsx</code>): client component gọi <code>signIn("dos-id", { callbackUrl, redirect: true })</code> trong <code>useEffect</code>, UI chỉ có spinner + nút "dùng cách đăng nhập khác" trỏ về <code>/auth/login?direct=1</code>. Nếu signIn fail (IdP chết) hiện thông báo lỗi + nút fallback.</li>
+    <li><b>Mảnh 3 - Escape hatch</b>: tham số <code>?direct=1</code> trong gate (mảnh 1) - không cần code riêng, trang login cũ giữ nguyên.</li>
+  </ul>
+  <pre>
+// Mảnh 1 - middleware (rút gọn từ proxy.ts Crove-Cal)
+const isDosIdProviderConfigured = () =&gt;
+  !!((process.env.OIDC_CLIENT_ID || "").trim() &amp;&amp;
+     (process.env.OIDC_CLIENT_SECRET || "").trim());
+
+const shouldRedirectToDosIdSso = (url) =&gt;
+  isDosIdProviderConfigured() &amp;&amp;
+  (url.pathname === "/auth/login" || url.pathname === "/login") &amp;&amp;
+  url.searchParams.get("direct") !== "1";
+
+// trong middleware handler:
+if (shouldRedirectToDosIdSso(url)) {
+  const sso = new URL("/auth/sso", req.url);
+  const cb = url.searchParams.get("callbackUrl");
+  if (cb) sso.searchParams.set("callbackUrl", cb);
+  return NextResponse.redirect(sso);
+}
+  </pre>
+  <pre>
+// Mảnh 2 - trang cầu nối (rút gọn từ sso-view.tsx Crove-Cal)
+useEffect(() =&gt; {
+  signIn("dos-id", { callbackUrl, redirect: true }).catch(() =&gt; setFailed(true));
+}, [callbackUrl]);
+// UI: failed ? "Không kết nối được DOS.Me ID" : "Đang chuyển tới DOS.Me ID..."
+// + nút fallback: /auth/login?direct=1&callbackUrl=...
+  </pre>
+
+  <h3>Stack không phải next-auth (Crove CRM, Desk, Sign...)</h3>
+  <p>Nguyên tắc y hệt, chỉ đổi tên công cụ: tìm nơi auth library nhận "bắt đầu sign-in với provider X" (một endpoint/hàm chính thức - Laravel: <code> Socialite::driver('dos')->stateless()-KHÔNG, luôn dùng redirect() có state; Passport-SAML/OIDC: authorize URL do thư viện sinh) và gọi nó từ trang cầu nối. Cấm tự nối chuỗi authorize URL bằng tay.</p>
+
+  <h2>5. Test bắt buộc trước khi merge</h2>
+  <ol>
+    <li>Unit test middleware: redirect khi đủ env; KHÔNG redirect khi thiếu env / có <code>direct=1</code> / path khác login; forward callbackUrl. (Xem 6 test trong <code>apps/web/proxy.test.ts</code> của Crove-Cal.)</li>
+    <li>Chạy app với env đủ: vào <code>/auth/login</code> phải bật qua <code>/auth/sso</code> tới id.dos.me.</li>
+    <li><code>/auth/login?direct=1</code> phải hiện form cũ.</li>
+    <li>Logout xong phải dừng ở trang logout, KHÔNG tự vào lại app.</li>
+    <li>User mới (chưa có trong app) đăng nhập lần đầu qua id.dos.me phải được JIT provisioning đúng org/permission.</li>
+  </ol>
+
+  <h2>6. Runbook deploy lên server crove (theo cách Crove-Cal đang chạy)</h2>
+  <ol>
+    <li>Merge PR -> CI xanh (type-check + lint + test) -> deploy-docker build image <code>:latest</code> mới lên GHCR (sau ci-gate).</li>
+    <li>SSH server: <code>gcloud compute ssh crove-server --zone=asia-southeast1-b --project=crove-os</code>.</li>
+    <li><code>cd /opt/crove/&lt;app&gt; &amp;&amp; docker compose pull &lt;service&gt; &amp;&amp; docker compose up -d --no-deps &lt;service&gt;</code></li>
+    <li>Theo dõi: <code>docker ps --filter name=&lt;app&gt;</code> (chờ healthy) + <code>docker logs &lt;app&gt; --tail 30</code>.</li>
+    <li>Verify ngoài: mở app production, vào <code>/auth/login</code> phải chuyển sang id.dos.me.</li>
+  </ol>
+  <div class="warn-box">
+    <b>Rollback 30 giây khi container crash-loop:</b> tìm image cũ vẫn còn trên server <code>docker images</code> (dangling), gán lại tag rồi recreate:
+    <pre>docker tag &lt;old-image-id&gt; ghcr.io/dos/&lt;app&gt;:latest
+cd /opt/crove/&lt;app&gt; &amp;&amp; docker compose up -d --no-deps &lt;service&gt;</pre>
+    Lần 18/09 Crove-Cal crash-loop vì permission (xem mục 7) - rollback bằng đúng lệnh này, prod sống lại ngay khi chờ image fix.
+  </div>
+
+  <h2>7. Bài học từ lần đầu ship (đọc trước khi deploy app kế tiếp)</h2>
+  <ul>
+    <li><b>Chuyển container sang user non-root phải rà mọi chỗ ghi runtime.</b> Crove-Cal thêm <code>USER node</code> (PR #74) -> image khởi động chết vì turbo cần tạo <code>/calcom/.turbo</code> trong thư mục root-owned. Fix: <code>RUN mkdir -p &#38;.turbo &amp;&amp; chown node:node &#38;.turbo</code> (PR #79). Khi app các project khác chuyển non-root: liệt kê mọi thư mục app ghi lúc runtime (cache, tmp, upload) và chown hết trước khi <code>USER</code>.</li>
+    <li><b>Luôn có rollback sẵn trước khi pull.</b> Image cũ vẫn nằm trên server (dangling) - chỉ cần tag lại là quay về trong 30 giây.</li>
+    <li><b>Đừng tin "image build xanh = chạy được".</b> Build không phát hiện lỗi permission runtime. Bắt buộc theo dõi <code>docker ps</code> + logs sau mỗi lần up, và chỉ xác nhận xong khi healthcheck healthy.</li>
+    <li><b>Redirect phải im lặng khi env thiếu.</b> Môi trường dev/staging chưa có OIDC env phải giữ hành vi cũ (hiện form) - nhờ gate mirror điều kiện đăng ký provider.</li>
+    <li><b>Secret client dùng chung: rotate phải đồng bộ trong MỘT thao tác.</b> Sự cố 2026-09-21: client "Crove" trên Supabase bị rotate ngày 10/09 mà không ai kéo secret mới về server - SSO chết âm thầm trên CẢ Cal/CRM/Sign gần 2 tuần, và <b>không alarm nào vang</b> vì "không có error log" chỉ nghĩa là "không ai login mới". Quy trình bắt buộc từ giờ (xem mục 8).</li>
+    <li><b>Probe token endpoint định kỳ thay vì tin log.</b> POST giả một code vào token endpoint của IdP với secret hiện hành: nhận <code>invalid_grant</code> = credentials hợp lệ (code giả bị chê là đúng thiết kế); nhận <code>invalid client credentials</code> = secret đang sai. Đây là cách phát hiện secret lệch mà không cần ai login.</li>
+    <li><b>Auto-redirect login BẮT BUỘC có loop-guard.</b> Lần đầu ship Crove-Cal thiếu nó: secret sai khiến user bị bắn login → SSO → callback-error → login vô hạn (auto reload). Fix (PR #83): lần redirect SSO đầu tiên gắn cookie <code>dos-sso-attempted</code> 120 giây; trong thời gian đó /auth/login hiện form cũ thay vì bắn lại. Bất kỳ app nào xây auto-redirect SSO phải có cơ chế tương đương ngay từ PR đầu tiên.</li>
+    <li><b>Break-glass sign-in chỉ cho admin allowlist.</b> Chuẩn chung của suite (Sign/Desk/Cal): password/email-code sign-in chỉ chấp nhận email trong <code>ADMIN_EMAILS</code>; ngoài danh sách nhận lỗi <code>third-party-identity-provider-enabled</code> (UI đã có bản dịch dẫn user về DOS ID). Deploy chưa set <code>ADMIN_EMAILS</code> giữ hành vi mở (chống tự khoá lối). Tham chiếu: PR #84 (ADMIN_EMAILS + invite token) + #85 (siết allowlist).</li>
+  </ul>
+
+  <h2>8. Quy trình rotate secret của client OAuth dùng chung (gói MỘT thao tác)</h2>
+  <div class="note">
+    <b>Quy tắc:</b> một client OAuth dùng chung nhiều app thì secret có MỘT nguồn sự thật duy nhất = GCP Secret Manager (<code>CROVE_OAUTH_CLIENT_SECRET</code>, project <code>crove-os</code>). Rotate mà không kéo xuống hết các consumer là lỗi vận hành - đã gây sự cố 2 tuần chết âm thầm (tháng 9/2026).
+  </div>
+  <ol>
+    <li>Rotate trên Supabase Dashboard (project <code>dos</code> - <code>gulptwduchsjcsbndmua</code>) → Authentication → OAuth client "Crove" → regenerate secret.</li>
+    <li>Lưu ngay vào GCP Secret Manager (secret không đi qua chat):
+      <pre>gcloud secrets versions add CROVE_OAUTH_CLIENT_SECRET --project=crove-os --data-file=-
+# dán secret mới, Enter, Ctrl+D</pre></li>
+    <li>Cập nhật env của MỌI consumer trên crove-server và recreate (file env của CRM/Sign thuộc root - dùng sudo; backup trước: <code>.env.bak-&lt;ngày&gt;</code>):
+      <table>
+        <thead><tr><th>App</th><th>File</th><th>Biến</th></tr></thead>
+        <tbody>
+          <tr><td>Crove-Cal</td><td>/opt/crove/cal/.env</td><td><code>OIDC_CLIENT_SECRET</code></td></tr>
+          <tr><td>Crove-CRM</td><td>/opt/crove/crm/.env</td><td><code>AUTH_DOS_ID_CLIENT_SECRET</code></td></tr>
+          <tr><td>Crove-Sign</td><td>/opt/crove/sign/.env</td><td><code>NEXT_PRIVATE_OIDC_CLIENT_SECRET</code></td></tr>
+          <tr><td>App mới</td><td>/opt/crove/&lt;app&gt;/.env</td><td>biến secret của app đó</td></tr>
+        </tbody>
+      </table>
+      <pre>docker compose up -d --no-deps --force-recreate &lt;service&gt;</pre></li>
+    <li>Probe TỪNG app ngay sau khi recreate (thay token endpoint + client id + secret của app đó):
+      <pre>curl -u "$CID:$CSEC" -X POST "$TOKEN_ENDPOINT" \
+  -d "grant_type=authorization_code&code=fake-diagnostic&redirect_uri=$CALLBACK"
+# mong đợi: invalid_grant (credentials OK) - KHÔNG phải invalid client credentials</pre></li>
+    <li>Test login mới thật trên từng app (trình duyệt ẩn danh, đăng nhập DOS ID từ đầu). Xong mới coi rotate hoàn tất.</li>
+  </ol>
+
+  <h2>9. Liên kết tham chiếu trong Crove-Cal</h2>
+  <table>
+    <thead><tr><th>Thành phần</th><th>Vị trí</th></tr></thead>
+    <tbody>
+      <tr><td>Middleware gate + redirect</td><td><code>apps/web/proxy.ts</code> (hàm <code>shouldRedirectToDosIdSso</code>)</td></tr>
+      <tr><td>Trang cầu nối</td><td><code>apps/web/modules/auth/sso-view.tsx</code> + <code>app/(use-page-wrapper)/auth/sso/page.tsx</code></td></tr>
+      <tr><td>Điều kiện đăng ký provider (middleware phải mirror cái này)</td><td><code>packages/features/auth/lib/next-auth-options.ts</code> (hàm <code>DosIdProvider</code>)</td></tr>
+      <tr><td>Unit test</td><td><code>apps/web/proxy.test.ts</code> (describe "DOS ID auto-SSO redirect")</td></tr>
+      <tr><td>i18n keys</td><td><code>packages/i18n/locales/en/common.json</code>: <code>sso_redirecting_title</code>, <code>sso_redirecting_body</code>, <code>sso_redirect_failed</code>, <code>sso_use_other_login</code></td></tr>
+      <tr><td>PR tham chiếu</td><td>#78 (feature) · #79 (hotfix turbo cache) · #83 (loop-guard) · #84 (ADMIN_EMAILS + invite token) · #85 (break-glass admin-only)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="ok-box">
+    <b>Định nghĩa xong với mỗi app:</b> (1) OIDC client trên id.dos.me + env cấu hình, (2) 3 mảnh code theo mục 4, (3) 5 bài test mục 5 pass, (4) deploy theo runbook mục 6 kèm verify production, (5) ghi chú lại bất kỳ bài học mới vào guide này (đặt file guide trong repo của app đó).
+  </div>
+</main>
+
+<footer>
+  Nguồn: Crove-Cal PR #78-#85, production cal.crove.com, các sự cố deploy 2026-09-18/21 và cách xử lý · File self-contained, không fetch ngoài.
+</footer>
+</body>
+</html>
