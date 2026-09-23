@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-const THEME_UNSUPPORTED_ROUTES = [];
+const THEME_UNSUPPORTED_ROUTES: string[] = [];
 
 export default function useIsThemeSupported(): boolean {
   const pathname = usePathname();
