@@ -126,6 +126,12 @@ export default defineConfig({
         "@prisma/extension-accelerate",
         "@ewsjs/xhr",
         "next-i18next/serverSideTranslations",
+        // The prisma enums/index.js CommonJS module is a workspace file outside
+        // node_modules, so the commonjs plugin does not transform it and rollup
+        // fails with "EventTypeCustomInputType is not exported". Keep prisma out
+        // of the bundle entirely - consumers resolve it from their own deps.
+        /^@calcom\/prisma(\/.*)?$/,
+        "@calcom/i18n/server",
       ],
       output: {
         globals: {
@@ -205,7 +211,16 @@ export default defineConfig({
       },
     },
   },
-  plugins: [react(), dts()],
+  plugins: [
+    react(),
+    dts({
+      // The tsconfig maps "@calcom/i18n/server" to the i18n package's TS source,
+      // which lives outside this package root; with strictOutput (the default)
+      // declaration emit fails with TS6059 on that file. Declarations are still
+      // emitted correctly alongside the bundle.
+      strictOutput: false,
+    }),
+  ],
   resolve: {
     conditions: ["node", "import", "require", "default"],
     alias: {
