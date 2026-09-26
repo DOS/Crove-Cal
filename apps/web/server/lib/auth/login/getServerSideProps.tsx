@@ -1,5 +1,6 @@
 import process from "node:process";
 import { getServerSession } from "@calcom/features/auth/lib/getServerSession";
+import { isBreakGlassLoginConfigured } from "@calcom/features/auth/lib/syncDosOrganizations";
 import { WEBSITE_URL } from "@calcom/lib/constants";
 import { getSafeRedirectUrl } from "@calcom/lib/getSafeRedirectUrl";
 import prisma from "@calcom/prisma";
@@ -78,6 +79,16 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
   }
 
   const userExists = await prisma.user.findFirst({ select: { id: true } });
+  if (!userExists && isDosIdLoginEnabled()) {
+    // SSO-only deployment: the first admin provisions through DOS ID (the
+    // break-glass allowlist elevates them); the password wizard is disabled.
+    return {
+      redirect: {
+        destination: "/auth/sso",
+        permanent: false,
+      },
+    };
+  }
   if (!userExists) {
     // Proceed to new onboarding to create first admin user
     return {
@@ -92,6 +103,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
       csrfToken: await getCsrfToken(context),
       isGoogleLoginEnabled: IS_GOOGLE_LOGIN_ENABLED,
       isOutlookLoginEnabled: false,
+      breakGlassLoginEnabled: isBreakGlassLoginConfigured(),
       isDosIdLoginEnabled: isDosIdLoginEnabled(),
       totpEmail,
     },

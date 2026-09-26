@@ -4,6 +4,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import z from "zod";
 
+import { isDosIdLoginEnabled } from "@server/lib/constants";
+
 import { hashPassword } from "@calcom/lib/auth/hashPassword";
 import { isPasswordValid } from "@calcom/lib/auth/isPasswordValid";
 import { emailRegex } from "@calcom/lib/emailSchema";
@@ -26,6 +28,15 @@ const querySchema = z.object({
 });
 
 async function handler(req: NextRequest) {
+  // SSO-only deployments provision their first admin through DOS ID (the
+  // break-glass allowlist elevates them on first login); the password wizard
+  // must not mint a password admin outside that flow.
+  if (isDosIdLoginEnabled()) {
+    throw new HttpError({
+      statusCode: 403,
+      message: "This deployment is SSO-only: the first admin signs in with DOS ID.",
+    });
+  }
   const userCount = await prisma.user.count();
   if (userCount !== 0) {
     throw new HttpError({ statusCode: 400, message: "No setup needed." });

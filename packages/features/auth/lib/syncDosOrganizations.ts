@@ -29,36 +29,41 @@ const readMetadataId = (metadata: unknown, key: "dosOrgId" | "dosTeamId"): strin
 };
 
 /**
- * Deployment-configured bootstrap admins (ADMIN_EMAILS, comma separated). This is the
- * admin break-glass for JIT provisioning: without it, a fresh deployment where every
- * account is provisioned via DOS ID can never produce its first ADMIN, because JIT
- * roles are capped at MEMBER and there is no password signup to promote from.
- * Explicitly configured emails are trusted above the MEMBER cap, but are capped at
- * ADMIN themselves - OWNER still has to come from a verified DOS.Me claim.
+ * Deployment-configured break-glass admin emails (suite-standard
+ * AUTH_BREAK_GLASS_EMAILS, with the older ADMIN_EMAILS kept as a legacy alias;
+ * both lists are unioned). These emails are the admin break-glass for JIT
+ * provisioning: without them, a fresh deployment where every account is
+ * provisioned via DOS ID can never produce its first ADMIN, because JIT roles
+ * are capped at MEMBER and there is no password signup to promote from.
+ * Explicitly configured emails are trusted above the MEMBER cap, but are capped
+ * at ADMIN themselves - OWNER still has to come from a verified DOS.Me claim.
  */
-export const getBootstrapAdminRole = (email: string | null): MembershipRole | null => {
-  const adminEmails = (process.env.ADMIN_EMAILS || "")
+const getBreakGlassEmails = (): string[] => {
+  return `${process.env.AUTH_BREAK_GLASS_EMAILS || ""},${process.env.ADMIN_EMAILS || ""}`
     .split(",")
     .map((entry) => entry.trim().toLowerCase())
     .filter(Boolean);
+};
+
+/** True when a break-glass allowlist is configured at all. */
+export const isBreakGlassLoginConfigured = (): boolean => getBreakGlassEmails().length > 0;
+
+export const getBootstrapAdminRole = (email: string | null): MembershipRole | null => {
+  const adminEmails = getBreakGlassEmails();
   if (!email || adminEmails.length === 0) return null;
   return adminEmails.includes(email.trim().toLowerCase()) ? MembershipRole.ADMIN : null;
 };
 
 /**
- * Break-glass sign-in (password / email code) policy: when ADMIN_EMAILS is configured,
- * only those accounts may bypass DOS ID - everyone else must go through the identity
- * provider, which shrinks the always-on password attack surface to just the admins
- * (Sign/Desk alignment). When ADMIN_EMAILS is unset the deployment keeps the legacy
- * open behavior so it never locks itself out of a half-migrated setup.
+ * Break-glass sign-in (password / email code) policy: when a break-glass
+ * allowlist is configured, only those accounts may bypass DOS ID - everyone
+ * else must go through the identity provider, which shrinks the always-on
+ * password attack surface to just the admins (Sign/Desk alignment). When no
+ * allowlist is configured the deployment keeps the legacy open behavior so it
+ * never locks itself out of a half-migrated setup.
  */
 export const isBreakGlassLoginAllowed = (email: string | null): boolean => {
-  const raw = (process.env.ADMIN_EMAILS || "").trim();
-  if (!raw) return true;
-  const adminEmails = raw
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean);
+  const adminEmails = getBreakGlassEmails();
   if (adminEmails.length === 0) return true;
   if (!email) return false;
   return adminEmails.includes(email.trim().toLowerCase());

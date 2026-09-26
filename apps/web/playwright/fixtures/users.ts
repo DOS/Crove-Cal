@@ -954,7 +954,9 @@ export async function login(
   const signInLocator = loginLocator.locator('[type="submit"]');
 
   //login
-  await page.goto("/");
+  // SSO-only deployments auto-redirect /auth/login to the DOS ID bridge; the
+  // e2e suite signs in through the break-glass form instead.
+  await page.goto("/auth/login?direct=1");
   await page.waitForSelector("text=Welcome back");
 
   await emailLocator.fill(user.email ?? `${user.username}@example.com`);
