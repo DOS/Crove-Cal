@@ -489,7 +489,9 @@ export class WorkflowService {
             method,
             scheduledDate,
             scheduled: false,
-            referenceId: `rem_${bookingUid}_${step.id}_${Date.now()}`,
+            // Stable id (no timestamp): re-scheduling the same booking+step
+            // collides on the unique key instead of stacking duplicate rows.
+            referenceId: `rem_${bookingUid}_${step.id}`,
           },
         });
         createdReminders.push(reminder);

@@ -11,13 +11,15 @@ import AuthContainer from "@components/ui/AuthContainer";
 
 export type PageProps = {
   query: ParsedUrlQuery;
+  breakGlassLoginEnabled: boolean;
 };
 
 /**
  * Bridge page of the DOS ID auto-SSO flow. The middleware sends /auth/login here
  * whenever the dos-id provider is configured, and this view immediately starts the
  * next-auth sign-in (which owns CSRF + state + the IdP redirect). The classic
- * login form stays reachable through /auth/login?direct=1 as the break-glass path.
+ * login form stays reachable through /auth/login?direct=1 as the break-glass path,
+ * but only when the deployment has a break-glass allowlist configured.
  */
 export function SsoRedirect(props: PageProps) {
   const { t } = useLocale();
@@ -47,13 +49,15 @@ export function SsoRedirect(props: PageProps) {
           <p className="text-subtle text-sm">{t("sso_redirecting_body")}</p>
         </div>
       </div>
-      <Button
-        className="mt-6 flex w-full justify-center"
-        loading={!failed}
-        disabled={!failed}
-        href={fallbackHref}>
-        {t("sso_use_other_login")}
-      </Button>
+      {props.breakGlassLoginEnabled && (
+        <Button
+          className="mt-6 flex w-full justify-center"
+          loading={!failed}
+          disabled={!failed}
+          href={fallbackHref}>
+          {t("sso_use_other_login")}
+        </Button>
+      )}
     </AuthContainer>
   );
 }

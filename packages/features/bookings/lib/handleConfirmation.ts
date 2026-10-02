@@ -2,6 +2,7 @@ import { eventTypeAppMetadataOptionalSchema } from "@calcom/app-store/zod-utils"
 import { sendScheduledEmailsAndSMS } from "@calcom/emails/email-manager";
 import type { EventManagerUser } from "@calcom/features/bookings/lib/EventManager";
 import EventManager from "@calcom/features/bookings/lib/EventManager";
+import { emitBookingWorkflowEvent } from "@calcom/lib/bookingWorkflowEvents";
 import getWebhooks from "@calcom/features/webhooks/lib/getWebhooks";
 import { scheduleTrigger } from "@calcom/features/webhooks/lib/scheduleTrigger";
 import sendPayload from "@calcom/features/webhooks/lib/sendOrSchedulePayload";
@@ -306,6 +307,19 @@ export async function handleConfirmation(args: {
         uid: booking.uid,
       },
     ];
+  }
+
+  // Workflows (audit HI-14): bookings confirmed here also get their workflow
+  // reminders scheduled now that they are ACCEPTED.
+  for (const updatedBooking of updatedBookings) {
+    if (updatedBooking.status !== BookingStatus.ACCEPTED || !booking.eventTypeId) continue;
+    emitBookingWorkflowEvent({
+      type: "booking_confirmed",
+      bookingUid: updatedBooking.uid,
+      eventTypeId: booking.eventTypeId,
+      startTime: updatedBooking.startTime,
+      endTime: updatedBooking.endTime,
+    });
   }
 
   const triggerForUser = true;

@@ -10,6 +10,14 @@ export async function register() {
       await import("./sentry.edge.config");
     }
   }
+  // Workflows engine (audit HI-14): subscribe the reminder scheduler to booking
+  // lifecycle events. Nodejs server runtime only - the edge bundle must not
+  // pull the workflows engine in.
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("@calcom/features/workflows/lib/bookingWorkflowListener").then(
+      (mod) => mod.registerBookingWorkflowListener()
+    );
+  }
 }
 
 export const onRequestError: Instrumentation.onRequestError = (err, request, context) => {

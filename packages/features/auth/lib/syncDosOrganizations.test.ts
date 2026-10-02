@@ -1,7 +1,11 @@
 import { MembershipRole } from "@calcom/prisma/enums";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getBootstrapAdminRole, isBreakGlassLoginAllowed } from "./syncDosOrganizations";
+import {
+  getBootstrapAdminRole,
+  isBreakGlassLoginAllowed,
+  isBreakGlassLoginConfigured,
+} from "./syncDosOrganizations";
 
 describe("getBootstrapAdminRole", () => {
   afterEach(() => {
@@ -55,5 +59,27 @@ describe("isBreakGlassLoginAllowed", () => {
   it("rejects a missing email when the allowlist is active", () => {
     vi.stubEnv("ADMIN_EMAILS", "joy@dos.me");
     expect(isBreakGlassLoginAllowed(null)).toBe(false);
+  });
+
+  it("honors the suite-standard AUTH_BREAK_GLASS_EMAILS variable", () => {
+    vi.stubEnv("ADMIN_EMAILS", "");
+    vi.stubEnv("AUTH_BREAK_GLASS_EMAILS", "admin@dos.me");
+    expect(isBreakGlassLoginAllowed("admin@dos.me")).toBe(true);
+    expect(isBreakGlassLoginAllowed("other@example.com")).toBe(false);
+    expect(isBreakGlassLoginConfigured()).toBe(true);
+    expect(getBootstrapAdminRole("admin@dos.me")).toBe(MembershipRole.ADMIN);
+  });
+
+  it("unions AUTH_BREAK_GLASS_EMAILS with the legacy ADMIN_EMAILS", () => {
+    vi.stubEnv("AUTH_BREAK_GLASS_EMAILS", "new@dos.me");
+    vi.stubEnv("ADMIN_EMAILS", "legacy@dos.me");
+    expect(isBreakGlassLoginAllowed("new@dos.me")).toBe(true);
+    expect(isBreakGlassLoginAllowed("legacy@dos.me")).toBe(true);
+  });
+
+  it("reports unconfigured when neither variable is set", () => {
+    vi.stubEnv("AUTH_BREAK_GLASS_EMAILS", "");
+    vi.stubEnv("ADMIN_EMAILS", "");
+    expect(isBreakGlassLoginConfigured()).toBe(false);
   });
 });

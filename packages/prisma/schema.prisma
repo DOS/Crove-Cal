@@ -2960,4 +2960,5 @@ model WorkflowReminder {
   @@index([bookingUid])
   @@index([workflowStepId])
   @@index([scheduledDate, scheduled])
+  @@index([method, scheduled, cancelled, scheduledDate])
 }

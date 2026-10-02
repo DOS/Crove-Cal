@@ -549,6 +549,29 @@ describe("DOS ID auto-SSO redirect", () => {
       expect.objectContaining({ maxAge: 120 })
     );
   });
+
+  it("marks deliberate logouts so they are not bounced back into SSO", async () => {
+    const req = createTestRequest({ url: `${WEBAPP_URL}/auth/logout` });
+
+    const res = await callProxy(req);
+    const setMock = (res as unknown as { cookies: { set: Mock } }).cookies.set;
+    expect(setMock).toHaveBeenCalledWith(
+      "dos-explicit-logout",
+      "1",
+      expect.objectContaining({ maxAge: 60 * 60 * 24 * 30 })
+    );
+  });
+
+  it("does not auto-redirect a logged-out user until they sign in again", async () => {
+    const req = createTestRequest({
+      url: `${WEBAPP_URL}/auth/login`,
+      cookies: { "dos-explicit-logout": "1" },
+    });
+
+    const res = await callProxy(req);
+    // The classic form renders as the post-logout interstitial; no SSO bounce.
+    expect(getHeader(res, "x-middleware-next")).toBe("1");
+  });
 });
 
 describe("Middleware Matcher Configuration", () => {
@@ -572,6 +595,15 @@ describe("Middleware Matcher Configuration", () => {
   it("should not contain any /api/ routes except /api/auth/signup", () => {
     const apiRoutes = matcher.filter((entry) => entry.startsWith("/api/") && entry !== "/api/auth/signup");
     expect(apiRoutes).toEqual([]);
+  });
+
+  it("must never cover public booking/embed/user surfaces (Wave 4 regression guard)", () => {
+    const publicSurfaces = ["/[user]", "/booking", "/:path*/embed*", "/availability/*", "/d/*"];
+    for (const surface of publicSurfaces) {
+      expect(matcher).not.toContain(surface);
+    }
+    // And the SSO auth challenge stays confined to the login paths it owns.
+    expect(matcher.filter((entry) => entry.includes("booking") && entry !== "/api/auth/signup")).toEqual([]);
   });
 
   it("should only contain the expected reduced route set", () => {

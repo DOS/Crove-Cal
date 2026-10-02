@@ -79,14 +79,25 @@ const isLoginPath = (url: URL) => url.pathname === "/auth/login" || url.pathname
 
 // ?direct=1 keeps the classic form reachable as the break-glass path when the
 // identity provider is unreachable or an admin needs a local sign-in.
-export const shouldRedirectToDosIdSso = (url: URL) =>
-  isDosIdProviderConfigured() && isLoginPath(url) && url.searchParams.get("direct") !== "1";
+// dos-explicit-logout: set by /auth/logout for 30 days so a deliberate logout
+// lands the user on the classic form (the interstitial) instead of bouncing
+// straight back into the SSO flow with their still-alive IdP session - the
+// 120s loop guard only covers error loops, not intentional sign-outs.
+export const shouldRedirectToDosIdSso = (
+  url: URL,
+  cookies?: { get(name: string): { value: string } | undefined }
+) =>
+  isDosIdProviderConfigured() &&
+  isLoginPath(url) &&
+  url.searchParams.get("direct") !== "1" &&
+  cookies?.get(EXPLICIT_LOGOUT_COOKIE)?.value !== "1";
 
 // Set on the first SSO redirect; while it lives, /auth/login shows the classic
 // form instead of bouncing the user back into the SSO flow. Without this a
 // failing token exchange (bad client secret, IdP outage) turns into an infinite
 // login -> sso -> callback-error -> login reload loop.
 const SSO_LOOP_GUARD_COOKIE = "dos-sso-attempted";
+const EXPLICIT_LOGOUT_COOKIE = "dos-explicit-logout";
 
 const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
   const url = req.nextUrl;
@@ -104,7 +115,10 @@ const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
 
   // Single-IdP deployments skip the login form entirely: hop to /auth/sso which
   // starts the next-auth dos-id flow (CSRF/state handled by next-auth).
-  if (shouldRedirectToDosIdSso(url) && !req.cookies.get(SSO_LOOP_GUARD_COOKIE)?.value) {
+  if (
+    shouldRedirectToDosIdSso(url, req.cookies) &&
+    !req.cookies.get(SSO_LOOP_GUARD_COOKIE)?.value
+  ) {
     const ssoUrl = new URL("/auth/sso", reqWithEnrichedHeaders.url);
     // Carry invite tokens through the SSO hop: after sign-in the user lands back
     // on the invited page (the next-auth callback then adopts the invited user
@@ -149,6 +163,16 @@ const proxy = async (req: NextRequest): Promise<NextResponse<unknown>> => {
 
   if (url.pathname.startsWith("/auth/logout")) {
     res.cookies.delete("next-auth.session-token");
+    // Deliberate sign-out: suppress the SSO auto-redirect for a month so the
+    // user stays signed out until they actively sign in again (the logout
+    // page and the classic form both offer an explicit DOS ID sign-in button).
+    res.cookies.set(EXPLICIT_LOGOUT_COOKIE, "1", {
+      maxAge: 60 * 60 * 24 * 30,
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+    });
   }
 
   return responseWithHeaders({ url, res, req: reqWithEnrichedHeaders });

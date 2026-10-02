@@ -115,6 +115,7 @@ export default function Login({
   isGoogleLoginEnabled,
   isOutlookLoginEnabled,
   isDosIdLoginEnabled,
+  breakGlassLoginEnabled,
   totpEmail,
 }: PageProps) {
   const searchParams = useCompatSearchParams();
@@ -181,6 +182,9 @@ export default function Login({
   };
 
   const isDosIdAuthEnabled = isDosIdLoginEnabled || process.env.NEXT_PUBLIC_DOS_ID_LOGIN_ENABLED === "true";
+  // SSO-only mode: the provider is configured and no break-glass allowlist is
+  // set, so the password form is server-side dead weight and is not rendered.
+  const ssoOnlyFormVisible = !isDosIdLoginEnabled || breakGlassLoginEnabled;
   const showSocialLogin = isGoogleLoginEnabled || isOutlookLoginEnabled || isDosIdAuthEnabled;
   const showSignupLink =
     process.env.NEXT_PUBLIC_DISABLE_SIGNUP !== "true" && searchParams?.get("register") !== "false";
@@ -271,6 +275,13 @@ export default function Login({
               </>
             )}
 
+            {!ssoOnlyFormVisible && !twoFactorRequired && (
+              <div className="mb-4 text-center">
+                <p className="text-subtle text-sm">{t("sso_only_deployment_notice")}</p>
+              </div>
+            )}
+
+            {(ssoOnlyFormVisible || twoFactorRequired) && (
             <form onSubmit={methods.handleSubmit(onSubmit)} noValidate data-testid="login-form">
               <input defaultValue={csrfToken || undefined} type="hidden" hidden {...register("csrfToken")} />
 
@@ -347,6 +358,7 @@ export default function Login({
                 {twoFactorRequired ? t("submit") : t("continue")}
               </Button>
             </form>
+            )}
 
             {/* Two Factor Footer */}
             {twoFactorRequired && (
