@@ -9,7 +9,7 @@ on:
     - cron: "0 0 1 * *"
 jobs:
   cron-syncAppMeta:
-    if: github.repository == 'calcom/cal.diy'
+    if: github.repository == 'DOS/Crove-Cal'
     env:
       APP_URL: ${{ secrets.APP_URL }}
       CRON_API_KEY: ${{ secrets.CRON_API_KEY }}
